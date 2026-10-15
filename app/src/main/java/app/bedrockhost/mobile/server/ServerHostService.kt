@@ -158,7 +158,7 @@ class ServerHostService : Service() {
             }
         }.toMutableList()
         if (!replaced) updated.add("xbox-auth=off")
-        propertiesFile.writeText(updated.joinToString("\\n") + "\\n", Charsets.UTF_8)
+        propertiesFile.writeText(updated.joinToString("\n") + "\n", Charsets.UTF_8)
         log("LAN compatibility: server-side Xbox authentication is OFF; use only on a trusted network because player identity is not verified.")
     }
 
