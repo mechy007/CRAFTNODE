@@ -30,10 +30,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ninja-build cmake git curl zip unzip tar pkg-config
 
-      - name: Install Android SDK and NDK
-        uses: android-actions/setup-android@v3
-      - name: Install pinned NDK
-        run: sdkmanager "ndk;27.2.12479018"
+      - name: Install Android SDK and pinned NDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null
+          "$SDKMANAGER" --install "ndk;27.2.12479018"
+          test -f "$ANDROID_HOME/ndk/27.2.12479018/build/cmake/android.toolchain.cmake"
 
       - name: Bootstrap vcpkg
         run: |
