@@ -66,15 +66,30 @@ class PocketMineInstaller(private val filesDir: File) {
                 "Installed by CraftNode. This is third-party Bedrock server software.\n"
         )
 
-        if (engineRoot.exists()) check(engineRoot.deleteRecursively()) { "Could not replace previous engine files." }
-        check(target.renameTo(engineRoot)) { "Could not activate the installed engine." }
-        staging.deleteRecursively()
+        // Activate the new engine transactionally: keep the previous install until the
+        // staged engine has been moved into place, and restore it if activation fails.
+        val previous = File(filesDir, "engine-previous")
+        if (previous.exists()) check(previous.deleteRecursively()) { "Could not clear the previous engine backup." }
+        val hadPrevious = engineRoot.exists()
+        if (hadPrevious) check(engineRoot.renameTo(previous)) { "Could not preserve the current engine install." }
+        try {
+            check(target.renameTo(engineRoot)) { "Could not activate the installed engine." }
+            val installedRelativePath = targetPhp.relativeTo(copiedRuntime).invariantSeparatorsPath
+            val installedPhp = File(engineRoot, "runtime/$installedRelativePath")
+            check(installedPhp.isFile && installedPhp.canExecute()) { "PHP runtime failed its post-install check." }
+            check(File(engineRoot, "PocketMine-MP.phar").length() > 1_000_000L) {
+                "PocketMine-MP failed its post-install check."
+            }
+            if (previous.exists()) previous.deleteRecursively()
+        } catch (failure: Exception) {
+            if (engineRoot.exists()) engineRoot.deleteRecursively()
+            if (hadPrevious && previous.exists()) previous.renameTo(engineRoot)
+            throw failure
+        } finally {
+            staging.deleteRecursively()
+        }
 
         val installedPhp = File(engineRoot, "runtime/" + targetPhp.relativeTo(copiedRuntime).invariantSeparatorsPath)
-        check(installedPhp.isFile && installedPhp.canExecute()) { "PHP runtime failed its post-install check." }
-        check(File(engineRoot, "PocketMine-MP.phar").length() > 1_000_000L) {
-            "PocketMine-MP failed its post-install check."
-        }
         onProgress("PocketMine-MP files installed. First startup and in-game LAN test are still required.")
         return InstallResult(installedPhp, File(engineRoot, "PocketMine-MP.phar"), "5.44.3")
     }
