@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@color/craftnode_background"/>
-    <item android:gravity="center">
-        <item android:drawable="@drawable/craftnode_splash_mark" android:gravity="center"/>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#14101C" />
+        </shape>
     </item>
+    <item
+        android:drawable="@drawable/craftnode_splash_mark"
+        android:gravity="center" />
 </layer-list>
