@@ -42,7 +42,7 @@ jobs:
               marker = "#include <netdb.h>"
               if marker not in source:
                   raise SystemExit("Could not find netdb include in HttpsClient.cpp")
-              source = source.replace(marker, marker + "\\n" + include, 1)
+              source = source.replace(marker, marker + chr(10) + include, 1)
               path.write_text(source)
           if include not in path.read_text():
               raise SystemExit("Failed to apply Android TCP header patch")
