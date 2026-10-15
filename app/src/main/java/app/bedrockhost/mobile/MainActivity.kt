@@ -1,8 +1,12 @@
 package app.bedrockhost.mobile
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import app.bedrockhost.mobile.server.ServerHostService
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -98,6 +102,7 @@ private enum class Page(val label: String) {
 
 @Composable
 private fun CraftNodeApp() {
+    val context = LocalContext.current
     var page by remember { mutableStateOf(Page.Play) }
     var selectedProfile by remember { mutableStateOf("Survival World") }
     var notice by remember { mutableStateOf("Choose a world to manage your server.") }
@@ -137,7 +142,18 @@ private fun CraftNodeApp() {
                     selectedProfile = selectedProfile,
                     onSelectProfile = { selectedProfile = it; notice = "$it selected." },
                     notice = notice,
-                    onStart = { notice = "Server engine is not connected yet. This button is a UI preview." },
+                    onStart = {
+                        val profileId = when (selectedProfile) {
+                            "Friends SMP" -> "friends"
+                            "Creative Test" -> "creative"
+                            else -> "survival"
+                        }
+                        val intent = Intent(context, ServerHostService::class.java)
+                            .setAction(ServerHostService.ACTION_START)
+                            .putExtra(ServerHostService.EXTRA_PROFILE_ID, profileId)
+                        ContextCompat.startForegroundService(context, intent)
+                        notice = "Starting PocketMine-MP. Check Console for real startup logs."
+                    },
                     onOpen = { page = it }
                 )
                 Page.Servers -> ListPage(
@@ -152,7 +168,12 @@ private fun CraftNodeApp() {
                     entries = listOf("Survival World" to "Local profile · Backup not created", "Creative Test" to "Local profile · Backup not created"),
                     onPick = { selectedProfile = it; notice = "$it selected."; page = Page.Play }
                 )
-                Page.Settings -> SettingsPage()
+                Page.Settings -> SettingsPage(onInstallEngine = {
+                    val intent = Intent(context, ServerHostService::class.java)
+                        .setAction(ServerHostService.ACTION_INSTALL)
+                    ContextCompat.startForegroundService(context, intent)
+                    notice = "Installing verified PocketMine-MP and Android ARM64 PHP runtime."
+                })
             }
             }
 
@@ -339,7 +360,7 @@ private fun HeroCard(
                     Text("START SERVER", fontWeight = FontWeight.Black, letterSpacing = 0.8.sp)
                 }
                 Spacer(Modifier.height(8.dp))
-                Text("PREVIEW ONLY  •  SERVER ENGINE NOT CONNECTED", color = Muted, fontSize = 9.sp, letterSpacing = 0.7.sp)
+                Text("POCKETMINE-MP BEDROCK ENGINE", color = Muted, fontSize = 9.sp, letterSpacing = 0.7.sp)
                 Spacer(Modifier.height(8.dp))
                 Text(notice, color = Green, fontSize = 11.sp, lineHeight = 15.sp)
             }
@@ -416,18 +437,28 @@ private fun ListPage(
             }
         }
         Spacer(Modifier.height(8.dp))
-        Text("Server engine integration is not connected in this build.", color = Muted, fontSize = 11.sp)
+        Text("Select Settings → Install Bedrock Engine before starting a server.", color = Muted, fontSize = 11.sp)
     }
 }
 
 @Composable
-private fun SettingsPage() {
+private fun SettingsPage(onInstallEngine: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         Text("Settings", color = TextMain, fontSize = 28.sp, fontWeight = FontWeight.Black)
         Spacer(Modifier.height(5.dp))
         Text("Customize your CraftNode experience.", color = Muted, fontSize = 13.sp)
         Spacer(Modifier.height(18.dp))
-        SettingRow("Server software", "Not installed / not detected")
+        SettingRow("Server software", "PocketMine-MP for Bedrock · Android ARM64 runtime")
+        Button(
+            onClick = onInstallEngine,
+            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp).height(50.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Purple, contentColor = Color.White)
+        ) {
+            Text("INSTALL BEDROCK ENGINE", fontWeight = FontWeight.Black, letterSpacing = 0.5.sp)
+        }
+        Text("Downloads official upstream files and verifies SHA-256 before installation. First startup and LAN joining still need testing.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
+        Spacer(Modifier.height(12.dp))
         SettingRow("Network access", "Remote play needs connectivity testing")
         SettingRow("World storage", "Local-first")
         SettingRow("CraftMind AI", "Not connected")
