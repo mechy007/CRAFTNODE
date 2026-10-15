@@ -12,10 +12,7 @@ import java.io.File
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.concurrent.thread
 
-/**
- * App-owned process supervisor. It starts only an engine installed in app-private storage.
- * The Bedrock engine installer is not wired yet, so missing runtime is reported honestly.
- */
+/** Manages the app-private PocketMine-MP process and installation task. */
 class ServerHostService : Service() {
     @Volatile private var process: Process? = null
     private var logThread: Thread? = null
@@ -31,8 +28,28 @@ class ServerHostService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
+            ACTION_INSTALL -> {
+                startForeground(NOTIFICATION_ID, notification("Installing Bedrock server engine"))
+                thread(name = "CraftNode-Engine-Install") {
+                    try {
+                        PocketMineInstaller(filesDir).install { message ->
+                            log(message)
+                            updateNotification(message)
+                        }
+                        log("Engine installation complete. Start it once to finish first-run setup.")
+                        updateNotification("PocketMine-MP installed")
+                        stopForeground(STOP_FOREGROUND_REMOVE)
+                        stopSelf(startId)
+                    } catch (e: Exception) {
+                        log("Engine installation failed: ${e.javaClass.simpleName}: ${e.message ?: "unknown error"}")
+                        updateNotification("Engine installation failed; see console log")
+                        stopForeground(STOP_FOREGROUND_REMOVE)
+                        stopSelf(startId)
+                    }
+                }
+            }
             ACTION_START -> {
-                startForeground(NOTIFICATION_ID, notification("Preparing server runtime"))
+                startForeground(NOTIFICATION_ID, notification("Starting PocketMine-MP"))
                 startEngine(intent.getStringExtra(EXTRA_PROFILE_ID) ?: "survival")
             }
             ACTION_STOP -> stopEngine()
@@ -54,33 +71,44 @@ class ServerHostService : Service() {
             stopSelf()
             return
         }
-        val executable = File(filesDir, "engine/bin/server")
-        if (!executable.isFile || !executable.canExecute()) {
-            log("Start failed: no verified Android-compatible Bedrock engine is installed.")
-            log("Expected engine path: ${executable.absolutePath}")
+        val engineRoot = File(filesDir, "engine")
+        val phar = File(engineRoot, "PocketMine-MP.phar")
+        val php = engineRoot.walkTopDown().firstOrNull {
+            it.isFile && it.name == "php" && it.parentFile?.name?.startsWith("bin") == true
+        } ?: engineRoot.walkTopDown().firstOrNull { it.isFile && it.name == "php" }
+        if (!phar.isFile || php == null || !php.canExecute()) {
+            log("Start failed: PocketMine-MP is not installed. Use Settings > Install Bedrock Engine first.")
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             return
         }
         try {
-            val world = File(filesDir, "worlds/$safeId").apply { mkdirs() }
-            val started = ProcessBuilder(executable.absolutePath, "--world-dir", world.absolutePath)
-                .directory(File(filesDir, "engine"))
+            val profileDir = File(filesDir, "worlds/$safeId").apply { mkdirs() }
+            val started = ProcessBuilder(php.absolutePath, phar.absolutePath, "--no-wizard")
+                .directory(profileDir)
                 .redirectErrorStream(true)
+                .apply {
+                    environment()["HOME"] = profileDir.absolutePath
+                    environment()["TMPDIR"] = File(cacheDir, "php-tmp").apply { mkdirs() }.absolutePath
+                    val libraryDirs = engineRoot.walkTopDown()
+                        .filter { it.isDirectory && (it.name == "lib" || it.name == "lib64") }
+                        .map { it.absolutePath }
+                        .toList()
+                    if (libraryDirs.isNotEmpty()) environment()["LD_LIBRARY_PATH"] =
+                        libraryDirs.joinToString(File.pathSeparator)
+                }
                 .start()
             process = started
-            log("Engine process started for profile $safeId.")
+            log("PocketMine-MP process started for profile $safeId; waiting for server readiness.")
             logThread = thread(name = "CraftNode-Server-Logs") {
-                started.inputStream.bufferedReader().useLines { lines ->
-                    lines.forEach { line -> log(line) }
-                }
+                started.inputStream.bufferedReader().useLines { lines -> lines.forEach { log(it) } }
                 val exit = runCatching { started.waitFor() }.getOrNull()
-                log("Engine process exited with code ${exit ?: "unknown"}.")
+                log("PocketMine-MP exited with code ${exit ?: "unknown"}.")
                 if (process === started) process = null
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
-            updateNotification("Server process started; waiting for engine readiness")
+            updateNotification("PocketMine-MP process running")
         } catch (e: Exception) {
             log("Start failed: ${e.javaClass.simpleName}: ${e.message ?: "unknown error"}")
             process = null
@@ -98,13 +126,17 @@ class ServerHostService : Service() {
             stopSelf()
             return
         }
-        log("Stopping server process.")
-        running.destroy()
+        log("Sending PocketMine-MP stop command.")
+        runCatching {
+            running.outputStream.write("stop\n".toByteArray(Charsets.UTF_8))
+            running.outputStream.flush()
+        }
         thread(name = "CraftNode-Stop-Wait") {
             try {
                 if (!running.waitFor(8, java.util.concurrent.TimeUnit.SECONDS)) {
                     log("Graceful stop timed out; terminating process.")
-                    running.destroyForcibly()
+                    running.destroy()
+                    if (!running.waitFor(3, java.util.concurrent.TimeUnit.SECONDS)) running.destroyForcibly()
                 }
             } catch (e: InterruptedException) {
                 Thread.currentThread().interrupt()
@@ -120,8 +152,7 @@ class ServerHostService : Service() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(
+            getSystemService(NotificationManager::class.java).createNotificationChannel(
                 NotificationChannel(CHANNEL_ID, "CraftNode server", NotificationManager.IMPORTANCE_LOW)
             )
         }
@@ -131,7 +162,7 @@ class ServerHostService : Service() {
         NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_notify_sync)
             .setContentTitle("CraftNode server")
-            .setContentText(text)
+            .setContentText(text.take(120))
             .setOngoing(true)
             .build()
 
@@ -145,6 +176,7 @@ class ServerHostService : Service() {
     }
 
     companion object {
+        const val ACTION_INSTALL = "app.bedrockhost.mobile.server.INSTALL"
         const val ACTION_START = "app.bedrockhost.mobile.server.START"
         const val ACTION_STOP = "app.bedrockhost.mobile.server.STOP"
         const val EXTRA_PROFILE_ID = "profile_id"
