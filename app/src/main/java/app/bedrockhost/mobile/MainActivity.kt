@@ -98,7 +98,7 @@ class MainActivity : ComponentActivity() {
 }
 
 private enum class Page(val label: String) {
-    Play("Play"), Servers("Servers"), Worlds("Worlds"), Settings("Settings")
+    Play("Play"), Servers("Servers"), Worlds("Worlds"), Console("Console"), Settings("Settings")
 }
 
 @Composable
@@ -481,7 +481,7 @@ private fun ConsolePage(logFile: File, onBack: () -> Unit, onStop: () -> Unit) {
     var logText by remember { mutableStateOf("No server log yet. Install the engine, then try starting a server.") }
     fun refreshLogs() {
         logText = if (logFile.isFile) {
-            runCatching { logFile.readLines().takeLast(350).joinToString("\\n") }
+            runCatching { logFile.readLines().takeLast(350).joinToString("\n") }
                 .getOrElse { "Could not read log: ${it.message}" }
                 .ifBlank { "Log file is empty." }
         } else {
