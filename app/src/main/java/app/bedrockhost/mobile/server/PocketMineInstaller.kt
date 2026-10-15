@@ -1,5 +1,6 @@
 package app.bedrockhost.mobile.server
 
+import android.content.res.AssetManager
 import android.system.Os
 import java.io.BufferedInputStream
 import java.io.File
@@ -16,7 +17,7 @@ import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
  * The caller must supply Android codeCacheDir because filesDir may be non-executable on some Android builds.
  * This is a community Bedrock server implementation, not Mojang's official vanilla server.
  */
-class PocketMineInstaller(private val filesDir: File) {
+class PocketMineInstaller(private val filesDir: File, private val assets: AssetManager) {
     data class InstallResult(val phpExecutable: File, val serverPhar: File, val version: String)
 
     fun install(onProgress: (String) -> Unit = {}): InstallResult {
@@ -33,11 +34,15 @@ class PocketMineInstaller(private val filesDir: File) {
             phpArchive,
             "d8867966340121f821591b9bb29c80a58ad77abd6cc8e0e44d1cbbb3aaedd70c"
         )
-        onProgress("Downloading PocketMine-MP 5.44.3…")
+        onProgress("Downloading NovaMine for Minecraft Bedrock 1.26.50/1.26.51…")
+        val novaMineSha256 = assets.open("novamine.sha256").bufferedReader().use { it.readText().trim() }
+        check(novaMineSha256.matches(Regex("[0-9a-f]{64}"))) {
+            "The bundled NovaMine SHA-256 checksum is missing or invalid."
+        }
         downloadVerified(
-            "https://github.com/pmmp/PocketMine-MP/releases/download/5.44.3/PocketMine-MP.phar",
+            "https://raw.githubusercontent.com/Zinkaio/NovaMine/e37d378d35b7ecb46ee5a6b9838a6d8261da2b24/NovaMine.phar",
             serverPhar,
-            "d8b4d87a64124d83659f629c87d6a8e0e142192f6c719fe4684272ff44105539"
+            novaMineSha256
         )
 
         val runtimeDir = File(staging, "runtime").apply { mkdirs() }
@@ -63,8 +68,9 @@ class PocketMineInstaller(private val filesDir: File) {
             "PocketMine-MP download is incomplete."
         }
         File(target, "INSTALL_INFO.txt").writeText(
-            "PocketMine-MP 5.44.3\nPHP 8.4 Android ARM64 runtime\n" +
-                "Source: official upstream release assets\n" +
+            "NovaMine based on PocketMine-MP 5.44.2\nMinecraft Bedrock 1.26.50/1.26.51 (protocol 2193)\n" +
+                "PHP 8.4 Android ARM64 runtime\n" +
+                "Source: Zinkaio/NovaMine pinned commit e37d378d35b7ecb46ee5a6b9838a6d8261da2b24\n" +
                 "Installed by CraftNode. This is third-party Bedrock server software.\n"
         )
 
@@ -94,7 +100,7 @@ class PocketMineInstaller(private val filesDir: File) {
 
         val installedPhp = File(engineRoot, "runtime/" + targetPhp.relativeTo(copiedRuntime).invariantSeparatorsPath)
         onProgress("PocketMine-MP files installed. First startup and in-game LAN test are still required.")
-        return InstallResult(installedPhp, File(engineRoot, "PocketMine-MP.phar"), "5.44.3")
+        return InstallResult(installedPhp, File(engineRoot, "PocketMine-MP.phar"), "NovaMine 1.26.51 protocol 2193")
     }
 
     private fun downloadVerified(url: String, destination: File, expectedSha256: String) {
