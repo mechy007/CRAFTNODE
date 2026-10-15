@@ -69,6 +69,7 @@ class ServerHostService : Service() {
                 }
             }
             ACTION_COMMAND -> {
+                startForeground(NOTIFICATION_ID, notification("Sending server console command"))
                 val command = intent.getStringExtra(EXTRA_COMMAND)?.trim().orEmpty()
                 if (command.isNotBlank() && command.length <= 512 && !command.contains('\n') && !command.contains('\r')) {
                     val running = process
