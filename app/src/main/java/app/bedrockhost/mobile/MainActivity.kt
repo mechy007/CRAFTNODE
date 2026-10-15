@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -56,6 +57,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -110,15 +112,16 @@ private fun CraftNodeApp() {
                 Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 18.dp, bottom = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    Modifier.size(42.dp).clip(RoundedCornerShape(12.dp))
-                        .background(Purple),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Default.Gamepad, contentDescription = null, tint = Color.White, modifier = Modifier.size(25.dp))
-                }
+                Image(
+                    painter = painterResource(id = R.drawable.craftnode_mark),
+                    contentDescription = "CraftNode logo",
+                    modifier = Modifier.size(42.dp).clip(RoundedCornerShape(12.dp))
+                )
                 Column(Modifier.weight(1f).padding(start = 11.dp)) {
-                    Text("CRAFTNODE", color = TextMain, fontSize = 20.sp, fontWeight = FontWeight.Black, letterSpacing = 1.2.sp)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Craft", color = TextMain, fontSize = 22.sp, fontWeight = FontWeight.Black)
+                        Text("Node", color = Green, fontSize = 22.sp, fontWeight = FontWeight.Black)
+                    }
                     Text("MINECRAFT SERVER LAUNCHER", color = Green, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.15.sp)
                 }
                 Box(
