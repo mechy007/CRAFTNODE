@@ -43,7 +43,7 @@ def main() -> int:
     packaging_ok = re.search(r'keepDebugSymbols\s*\+=\s*["\']\*\*/libphp\.so["\']', gradle) and re.search(r'useLegacyPackaging\s*=\s*true', gradle)
     require(bool(packaging_ok),
             "Android packaging extracts the bundled PHP executable into nativeLibraryDir")
-    require('versionCode = 106' in gradle and 'versionName = "1.0.6"' in gradle,
+    require('versionCode = 107' in gradle and 'versionName = "1.0.7"' in gradle,
             "version code and name are bumped")
     require('ndkVersion = "27.2.12479018"' in gradle and 'src/main/cpp/CMakeLists.txt' in gradle,
             "Android build pins NDK and enables CMake")
@@ -65,6 +65,12 @@ def main() -> int:
             "unsupported Java and PowerNukkitX setup is removed")
     require("formatConsoleLine" in main_activity and "HH:mm:ss" in main_activity,
             "console timestamps are rendered in readable clock format")
+    require('selectedMinecraftVersion' in main_activity and 'Minecraft Bedrock ${version.first}' in main_activity,
+            "Settings provides a Minecraft Bedrock version selector")
+    require('1.26.52' in main_activity and 'Android ARM64 build not available yet' in main_activity,
+            "1.26.52 selection clearly warns that its Android engine is not yet available")
+    require('selectedMinecraftVersion == "1.26.51"' in main_activity,
+            "engine installation is restricted to the verified 1.26.51 engine")
     require("RESTART" in dashboard and "App heap" in dashboard,
             "hosting dashboard includes restart and memory information")
     return 0
