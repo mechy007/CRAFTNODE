@@ -48,26 +48,6 @@ class ServerHostService : Service() {
                     }
                 }
             }
-            ACTION_INSTALL_JAVA21 -> {
-                startForeground(NOTIFICATION_ID, notification("Installing Java 21 Android ARM64"))
-                thread(name = "CraftNode-Java21-Install") {
-                    try {
-                        val result = Java21AndroidArm64Installer(codeCacheDir).install { message ->
-                            log(message)
-                            updateNotification(message)
-                        }
-                        log("Java runtime verified from Android code cache: ${result.javaExecutable.absolutePath}")
-                        log(result.versionOutput.trim())
-                        updateNotification("Java 21 ARM64 runtime ready")
-                    } catch (e: Exception) {
-                        log("Java 21 install failed: ${e.javaClass.simpleName}: ${e.message ?: "unknown error"}")
-                        updateNotification("Java install failed; see console log")
-                    } finally {
-                        stopForeground(STOP_FOREGROUND_REMOVE)
-                        stopSelf()
-                    }
-                }
-            }
             ACTION_COMMAND -> {
                 startForeground(NOTIFICATION_ID, notification("Sending server console command"))
                 val command = intent.getStringExtra(EXTRA_COMMAND)?.trim().orEmpty()
@@ -107,9 +87,11 @@ class ServerHostService : Service() {
         }
         val engineRoot = File(codeCacheDir, "engine")
         val phar = File(engineRoot, "PocketMine-MP.phar")
-        val php = engineRoot.walkTopDown().firstOrNull {
+        val bundledPhp = File(applicationInfo.nativeLibraryDir, "libphp.so")
+        val extractedPhp = engineRoot.walkTopDown().firstOrNull {
             it.isFile && it.name == "php" && it.parentFile?.name?.startsWith("bin") == true
         } ?: engineRoot.walkTopDown().firstOrNull { it.isFile && it.name == "php" }
+        val php = bundledPhp.takeIf { it.isFile && it.canExecute() } ?: extractedPhp
         if (!phar.isFile || php == null || !php.canExecute()) {
             log("Start failed: PocketMine-MP is not installed. Use Settings > Install Bedrock Engine first.")
             stopForeground(STOP_FOREGROUND_REMOVE)
@@ -124,6 +106,8 @@ class ServerHostService : Service() {
                 .apply {
                     environment()["HOME"] = profileDir.absolutePath
                     environment()["TMPDIR"] = File(cacheDir, "php-tmp").apply { mkdirs() }.absolutePath
+                    val iniFile = engineRoot.walkTopDown().firstOrNull { it.isFile && it.name == "php.ini" }
+                    if (iniFile != null) environment()["PHPRC"] = iniFile.absolutePath
                     val libraryDirs = engineRoot.walkTopDown()
                         .filter { it.isDirectory && (it.name == "lib" || it.name == "lib64") }
                         .map { it.absolutePath }
@@ -133,7 +117,7 @@ class ServerHostService : Service() {
                 }
                 .start()
             process = started
-            log("PocketMine-MP process started for profile $safeId; waiting for server readiness.")
+            log("PocketMine-MP process started for profile $safeId using ${if (php == bundledPhp) "APK-bundled PHP" else "extracted PHP fallback"}; waiting for server readiness.")
             logThread = thread(name = "CraftNode-Server-Logs") {
                 started.inputStream.bufferedReader().useLines { lines -> lines.forEach { log(it) } }
                 val exit = runCatching { started.waitFor() }.getOrNull()
@@ -213,7 +197,6 @@ class ServerHostService : Service() {
         const val ACTION_INSTALL = "app.bedrockhost.mobile.server.INSTALL"
         const val ACTION_START = "app.bedrockhost.mobile.server.START"
         const val ACTION_COMMAND = "app.bedrockhost.mobile.server.COMMAND"
-        const val ACTION_INSTALL_JAVA21 = "app.bedrockhost.mobile.server.INSTALL_JAVA21"
         const val ACTION_STOP = "app.bedrockhost.mobile.server.STOP"
         const val EXTRA_PROFILE_ID = "profile_id"
         const val EXTRA_COMMAND = "command"
