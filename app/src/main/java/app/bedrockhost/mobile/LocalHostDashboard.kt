@@ -12,6 +12,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PowerSettingsNew
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -90,33 +91,51 @@ fun LocalHostDashboard(onOpenConsole: () -> Unit) {
         Card(colors = CardDefaults.cardColors(containerColor = HostPanel), shape = RoundedCornerShape(18.dp)) {
             Column(Modifier.fillMaxWidth().padding(15.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("HOST DETAILS", color = HostMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+                val runtime = Runtime.getRuntime()
+                val appHeapMb = (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     HostInfoTile("Edition", "Bedrock", Modifier.weight(1f))
                     HostInfoTile("Protocol", "UDP · 19132", Modifier.weight(1f))
+                    HostInfoTile("App heap", "${appHeapMb} MB", Modifier.weight(1f))
                 }
                 Text(
                     "To connect from another device, use this phone's Wi-Fi IP address and port 19132. 127.0.0.1 only works on this phone.",
                     color = HostMuted, fontSize = 11.sp, lineHeight = 16.sp
                 )
-                Button(
-                    onClick = {
-                        val intent = Intent(context, ServerHostService::class.java)
-                            .setAction(if (running) ServerHostService.ACTION_STOP else ServerHostService.ACTION_START)
-                            .putExtra(ServerHostService.EXTRA_PROFILE_ID, "survival")
-                        ContextCompat.startForegroundService(context, intent)
-                        notice = if (running) "Stop requested; watch the real console output."
-                            else "Start requested; wait for real process logs before assuming it is online."
-                        refresh()
-                    },
-                    modifier = Modifier.fillMaxWidth().height(49.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (running) Color(0xFFBE3455) else Color(0xFF059669)
-                    )
-                ) {
-                    Icon(Icons.Default.PowerSettingsNew, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text(if (running) "STOP SERVER" else "START SERVER", fontWeight = FontWeight.Black)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = {
+                            val intent = Intent(context, ServerHostService::class.java)
+                                .setAction(if (running) ServerHostService.ACTION_STOP else ServerHostService.ACTION_START)
+                                .putExtra(ServerHostService.EXTRA_PROFILE_ID, "survival")
+                            ContextCompat.startForegroundService(context, intent)
+                            notice = if (running) "Stop requested; watch the real console output."
+                                else "Start requested; wait for real process logs before assuming it is online."
+                            refresh()
+                        },
+                        modifier = Modifier.weight(1f).height(49.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = if (running) Color(0xFFBE3455) else Color(0xFF059669))
+                    ) {
+                        Icon(Icons.Default.PowerSettingsNew, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        Text(if (running) "STOP" else "START", fontWeight = FontWeight.Black)
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            val intent = Intent(context, ServerHostService::class.java)
+                                .setAction(ServerHostService.ACTION_RESTART)
+                                .putExtra(ServerHostService.EXTRA_PROFILE_ID, "survival")
+                            ContextCompat.startForegroundService(context, intent)
+                            notice = "Restart requested; check the console for the actual result."
+                        },
+                        modifier = Modifier.weight(1f).height(49.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = null)
+                        Spacer(Modifier.width(5.dp))
+                        Text("RESTART", fontWeight = FontWeight.Bold)
+                    }
                 }
                 Text(notice, color = HostGreen, fontSize = 11.sp)
             }
