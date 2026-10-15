@@ -98,7 +98,7 @@ class MainActivity : ComponentActivity() {
 }
 
 private enum class Page(val label: String) {
-    Play("Play"), Servers("Servers"), Worlds("Worlds"), Console("Console"), CraftNode("CraftNode"), Settings("Settings")
+    Play("Play"), Host("Host"), Servers("Servers"), Worlds("Worlds"), Console("Console"), CraftNode("CraftNode"), Settings("Settings")
 }
 
 @Composable
@@ -170,6 +170,7 @@ private fun CraftNodeApp() {
                     entries = listOf("Survival World" to "Local profile · Backup not created", "Creative Test" to "Local profile · Backup not created"),
                     onPick = { selectedProfile = it; notice = "$it selected."; page = Page.Play }
                 )
+                Page.Host -> LocalHostDashboard(onOpenConsole = { page = Page.Console })
                 Page.CraftNode -> CraftNodeTab()
                 Page.Settings -> SettingsPage(
                     nativeReport = NativeDiagnostics.report(),
@@ -206,7 +207,7 @@ private fun CraftNodeApp() {
                 contentColor = TextMain,
                 windowInsets = WindowInsets.navigationBars
             ) {
-                listOf(Page.Play, Page.Servers, Page.Worlds, Page.CraftNode, Page.Settings).forEach { item ->
+                listOf(Page.Play, Page.Host, Page.Servers, Page.Worlds, Page.CraftNode, Page.Settings).forEach { item ->
                     NavigationBarItem(
                         selected = page == item,
                         onClick = { page = item },
@@ -214,6 +215,7 @@ private fun CraftNodeApp() {
                             Icon(
                                 when (item) {
                                     Page.Play -> Icons.Default.Home
+                                    Page.Host -> Icons.Default.Gamepad
                                     Page.Servers -> Icons.Default.Cloud
                                     Page.Worlds -> Icons.Default.Folder
                                     Page.Console -> Icons.Default.Terminal
