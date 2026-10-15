@@ -1,4 +1,4 @@
-name: Android CI
+name: CraftNode Android Build
 
 on:
   push:
@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build:
-    name: Build CraftNode debug APK
+    name: Test and build CraftNode v1.0.0 APK
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -31,18 +31,20 @@ jobs:
 
       - name: Install Android SDK packages
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          test -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" || find "$ANDROID_HOME/cmdline-tools" -maxdepth 3 -name sdkmanager -type f
+          test -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0"
 
-      - name: Build debug APK
-        run: gradle --no-daemon assembleDebug
+      - name: Run unit tests and build APK
+        run: gradle --no-daemon testDebugUnitTest assembleDebug
 
-      - name: Upload debug APK
+      - name: Rename versioned APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk CraftNode-v1.0.0-debug.apk
+
+      - name: Upload CraftNode v1.0.0 APK
         uses: actions/upload-artifact@v4
         with:
-          name: CraftNode-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: CraftNode-v1.0.0-debug-apk
+          path: CraftNode-v1.0.0-debug.apk
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
