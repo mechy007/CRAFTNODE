@@ -24,7 +24,12 @@ def main() -> int:
     dashboard = (ROOT / "app/src/main/java/app/bedrockhost/mobile/LocalHostDashboard.kt").read_text()
 
     hashes = re.findall(r'"([0-9a-f]{64})"', installer)
-    require(len(hashes) >= 1, "PHP runtime download has a pinned SHA-256 checksum")
+    require(len(hashes) >= 1 and "sha256sum --check" in workflow,
+            "PHP runtime download has a pinned SHA-256 checksum")
+    require("Prepare pinned NovaMine checksum asset" in workflow
+            and "sha256sum" in workflow
+            and "assets.open(\"novamine.sha256\")" in installer,
+            "NovaMine checksum is generated in CI and embedded for runtime verification")
     require("Zinkaio/NovaMine/e37d378d35b7ecb46ee5a6b9838a6d8261da2b24/NovaMine.phar" in installer, "NovaMine server URL is pinned to an immutable commit")
     require("downloadVerified(" in installer and "SHA-256 verification failed" in installer and 'assets.open("novamine.sha256")' in installer,
             "PHP and NovaMine downloads are checksum-verified")
