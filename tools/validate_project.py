@@ -48,8 +48,9 @@ def main() -> int:
             "server prefers PHP packaged in Android nativeLibraryDir")
     require("PHPRC" in service and "LD_LIBRARY_PATH" in service,
             "server process receives PHP configuration and native library paths")
-    require("ACTION_RESTART" in service and "restartEngine(profileId)" in service,
-            "restart control is wired to the server service")
+    require("ACTION_RESTART" in service and "restartEngine(intent.getStringExtra(EXTRA_PROFILE_ID)" in service
+            and "ServerHostService.ACTION_RESTART" in dashboard,
+            "restart control is wired from the dashboard to the server service")
     require("ACTION_INSTALL_JAVA21" not in service and "PowerNukkitX" not in main_activity,
             "unsupported Java and PowerNukkitX setup is removed")
     require("formatConsoleLine" in main_activity and "HH:mm:ss" in main_activity,
