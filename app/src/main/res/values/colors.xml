@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="craftnode_background">#14101C</color>
+    <color name="craftnode_purple">#7C5CFF</color>
+    <color name="craftnode_green">#4ADE80</color>
+</resources>
