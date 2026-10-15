@@ -48,6 +48,26 @@ class ServerHostService : Service() {
                     }
                 }
             }
+            ACTION_INSTALL_JAVA21 -> {
+                startForeground(NOTIFICATION_ID, notification("Installing Java 21 Android ARM64"))
+                thread(name = "CraftNode-Java21-Install") {
+                    try {
+                        val result = Java21AndroidArm64Installer(filesDir).install { message ->
+                            log(message)
+                            updateNotification(message)
+                        }
+                        log("Java runtime verified: ${result.javaExecutable.absolutePath}")
+                        log(result.versionOutput.trim())
+                        updateNotification("Java 21 ARM64 runtime ready")
+                    } catch (e: Exception) {
+                        log("Java 21 install failed: ${e.javaClass.simpleName}: ${e.message ?: "unknown error"}")
+                        updateNotification("Java install failed; see console log")
+                    } finally {
+                        stopForeground(STOP_FOREGROUND_REMOVE)
+                        stopSelf()
+                    }
+                }
+            }
             ACTION_START -> {
                 startForeground(NOTIFICATION_ID, notification("Starting PocketMine-MP"))
                 startEngine(intent.getStringExtra(EXTRA_PROFILE_ID) ?: "survival")
@@ -178,6 +198,7 @@ class ServerHostService : Service() {
     companion object {
         const val ACTION_INSTALL = "app.bedrockhost.mobile.server.INSTALL"
         const val ACTION_START = "app.bedrockhost.mobile.server.START"
+        const val ACTION_INSTALL_JAVA21 = "app.bedrockhost.mobile.server.INSTALL_JAVA21"
         const val ACTION_STOP = "app.bedrockhost.mobile.server.STOP"
         const val EXTRA_PROFILE_ID = "profile_id"
         private const val CHANNEL_ID = "craftnode_server"
