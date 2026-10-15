@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build:
-    name: Test and build CraftNode v1.0.4 APK
+    name: Test and build CraftNode v1.0.5 APK
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -54,6 +54,17 @@ jobs:
           cp "$PHP_BIN" app/src/main/jniLibs/arm64-v8a/libphp.so
           chmod 755 app/src/main/jniLibs/arm64-v8a/libphp.so
 
+      - name: Prepare pinned NovaMine checksum asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p app/src/main/assets "$RUNNER_TEMP/novamine"
+          NOVAMINE_URL="https://raw.githubusercontent.com/Zinkaio/NovaMine/e37d378d35b7ecb46ee5a6b9838a6d8261da2b24/NovaMine.phar"
+          curl --fail --location --retry 3 "$NOVAMINE_URL" -o "$RUNNER_TEMP/novamine/NovaMine.phar"
+          test "$(stat -c%s "$RUNNER_TEMP/novamine/NovaMine.phar")" -gt 1000000
+          sha256sum "$RUNNER_TEMP/novamine/NovaMine.phar" | awk '{print $1}' > app/src/main/assets/novamine.sha256
+          test "$(wc -c < app/src/main/assets/novamine.sha256)" -eq 65
+
       - name: Run Python project safety checks
         run: python tools/validate_project.py
 
@@ -61,12 +72,12 @@ jobs:
         run: gradle --no-daemon testDebugUnitTest assembleDebug
 
       - name: Rename versioned APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk CraftNode-v1.0.4-debug.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk CraftNode-v1.0.5-debug.apk
 
-      - name: Upload CraftNode v1.0.4 APK
+      - name: Upload CraftNode v1.0.5 APK
         uses: actions/upload-artifact@v4
         with:
-          name: CraftNode-v1.0.4-debug-apk
-          path: CraftNode-v1.0.4-debug.apk
+          name: CraftNode-v1.0.5-debug-apk
+          path: CraftNode-v1.0.5-debug.apk
           if-no-files-found: error
           retention-days: 30
