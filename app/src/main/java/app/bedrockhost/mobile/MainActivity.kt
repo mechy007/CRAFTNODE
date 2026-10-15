@@ -169,7 +169,7 @@ private fun CraftNodeApp() {
                     entries = listOf("Survival World" to "Local profile · Backup not created", "Creative Test" to "Local profile · Backup not created"),
                     onPick = { selectedProfile = it; notice = "$it selected."; page = Page.Play }
                 )
-                Page.Settings -> SettingsPage(onInstallEngine = {
+                Page.Settings -> SettingsPage(nativeReport = NativeDiagnostics.report(), onInstallEngine = {
                     val intent = Intent(context, ServerHostService::class.java)
                         .setAction(ServerHostService.ACTION_INSTALL)
                     ContextCompat.startForegroundService(context, intent)
@@ -452,7 +452,7 @@ private fun ListPage(
 }
 
 @Composable
-private fun SettingsPage(onInstallEngine: () -> Unit) {
+private fun SettingsPage(nativeReport: String, onInstallEngine: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         Text("Settings", color = TextMain, fontSize = 28.sp, fontWeight = FontWeight.Black)
         Spacer(Modifier.height(5.dp))
@@ -469,10 +469,11 @@ private fun SettingsPage(onInstallEngine: () -> Unit) {
         }
         Text("Downloads official upstream files and verifies SHA-256 before installation. First startup and LAN joining still need testing.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
         Spacer(Modifier.height(12.dp))
+        SettingRow("Device diagnostics · C++", nativeReport)
         SettingRow("Network access", "Remote play needs connectivity testing")
         SettingRow("World storage", "Local-first")
         SettingRow("CraftMind AI", "Not connected")
-        SettingRow("App version", "0.1.0 · Preview")
+        SettingRow("App version", "1.0.1 · Preview")
     }
 }
 
