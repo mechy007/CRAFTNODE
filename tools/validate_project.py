@@ -18,6 +18,7 @@ def main() -> int:
     gradle = (ROOT / "app/build.gradle.kts").read_text()
     native = (ROOT / "app/src/main/cpp/native_diagnostics.cpp").read_text()
     bridge = (ROOT / "app/src/main/java/app/bedrockhost/mobile/NativeDiagnostics.kt").read_text()
+    java_installer = (ROOT / "app/src/main/java/app/bedrockhost/mobile/server/Java21AndroidArm64Installer.kt").read_text()
 
     hashes = re.findall(r'"([0-9a-f]{64})"', installer)
     require(len(hashes) >= 2, "installer contains SHA-256 pins for both engine assets")
@@ -35,6 +36,13 @@ def main() -> int:
     require("System.loadLibrary(\"craftnode_native\")" in bridge,
             "Kotlin loads the native diagnostics library safely")
     require("available system RAM" in native, "native diagnostics reports system memory availability")
+    require("jre21-android-arm64.tar.xz" in java_installer and "8d41ec401ee59f7722df60ed991f81ad146e130452804bfdd8a05d3436f7bbfe" in java_installer,
+            "Java 21 Android ARM64 asset URL and SHA-256 are pinned")
+    require("XZCompressorInputStream" in java_installer and "Unsafe path found" in java_installer,
+            "Java runtime archive uses XZ decoding and path traversal checks")
+    require("containsMatchIn(output)" in java_installer and "ACTION_INSTALL_JAVA21" in (ROOT / "app/src/main/java/app/bedrockhost/mobile/server/ServerHostService.kt").read_text(),
+            "Java 21 launch verification is wired to the service")
+    require("org.tukaani:xz:2.0.1" in gradle, "XZ decompression dependency is declared")
     return 0
 
 
