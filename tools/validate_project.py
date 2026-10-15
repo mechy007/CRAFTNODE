@@ -42,7 +42,7 @@ def main() -> int:
             "Java runtime archive uses XZ decoding and path traversal checks")
     require("containsMatchIn(output)" in java_installer and "ACTION_INSTALL_JAVA21" in (ROOT / "app/src/main/java/app/bedrockhost/mobile/server/ServerHostService.kt").read_text(),
             "Java 21 launch verification is wired to the service")
-    require("org.tukaani:xz:2.0.1" in gradle, "XZ decompression dependency is declared")
+    require("org.tukaani:xz:1.10" in gradle, "XZ decompression dependency is declared")
     return 0
 
 
