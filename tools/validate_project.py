@@ -33,9 +33,9 @@ def main() -> int:
     require("engine-previous" in installer, "engine activation retains rollback support")
     require("libphp.so" in workflow and "sha256sum --check" in workflow and "readelf -h" in workflow,
             "CI checksum-verifies and architecture-checks the bundled PHP executable")
-    require('jniLibs { keepDebugSymbols += "**/libphp.so" }' in gradle,
-            "Android packaging preserves the bundled PHP executable")
-    require('versionCode = 103' in gradle and 'versionName = "1.0.3"' in gradle,
+    require('keepDebugSymbols += "**/libphp.so"' in gradle and 'useLegacyPackaging = true' in gradle,
+            "Android packaging extracts the bundled PHP executable into nativeLibraryDir")
+    require('versionCode = 104' in gradle and 'versionName = "1.0.4"' in gradle,
             "version code and name are bumped")
     require('ndkVersion = "27.2.12479018"' in gradle and 'src/main/cpp/CMakeLists.txt' in gradle,
             "Android build pins NDK and enables CMake")
