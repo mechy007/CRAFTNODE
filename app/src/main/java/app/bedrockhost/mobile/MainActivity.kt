@@ -169,12 +169,24 @@ private fun CraftNodeApp() {
                     entries = listOf("Survival World" to "Local profile · Backup not created", "Creative Test" to "Local profile · Backup not created"),
                     onPick = { selectedProfile = it; notice = "$it selected."; page = Page.Play }
                 )
-                Page.Settings -> SettingsPage(nativeReport = NativeDiagnostics.report(), selectedEngine = selectedEngine, onSelectEngine = { selectedEngine = it }, onInstallEngine = {
-                    val intent = Intent(context, ServerHostService::class.java)
-                        .setAction(ServerHostService.ACTION_INSTALL)
-                    ContextCompat.startForegroundService(context, intent)
-                    notice = "Installing verified PocketMine-MP and Android ARM64 PHP runtime."
-                })
+                Page.Settings -> SettingsPage(
+                    nativeReport = NativeDiagnostics.report(),
+                    selectedEngine = selectedEngine,
+                    onSelectEngine = { selectedEngine = it },
+                    onInstallEngine = {
+                        val intent = Intent(context, ServerHostService::class.java)
+                            .setAction(ServerHostService.ACTION_INSTALL)
+                        ContextCompat.startForegroundService(context, intent)
+                        notice = "Installing verified PocketMine-MP and Android ARM64 PHP runtime."
+                    },
+                    onInstallJavaRuntime = {
+                        val intent = Intent(context, ServerHostService::class.java)
+                            .setAction(ServerHostService.ACTION_INSTALL_JAVA21)
+                        ContextCompat.startForegroundService(context, intent)
+                        notice = "Installing checksum-verified Java 21 Android ARM64 runtime."
+                        page = Page.Console
+                    }
+                )
                 Page.Console -> ConsolePage(
                     logFile = File(context.filesDir, "logs/server-console.log"),
                     onBack = { page = Page.Play },
@@ -453,7 +465,7 @@ private fun ListPage(
 }
 
 @Composable
-private fun SettingsPage(nativeReport: String, selectedEngine: String, onSelectEngine: (String) -> Unit, onInstallEngine: () -> Unit) {
+private fun SettingsPage(nativeReport: String, selectedEngine: String, onSelectEngine: (String) -> Unit, onInstallEngine: () -> Unit, onInstallJavaRuntime: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         Text("Settings", color = TextMain, fontSize = 28.sp, fontWeight = FontWeight.Black)
         Spacer(Modifier.height(5.dp))
@@ -493,7 +505,14 @@ private fun SettingsPage(nativeReport: String, selectedEngine: String, onSelectE
         ) {
             Text(if (selectedEngine == "PocketMine-MP") "INSTALL POCKETMINE-MP" else "ENGINE NOT AVAILABLE YET", fontWeight = FontWeight.Black, letterSpacing = 0.5.sp)
         }
-        Text("PowerNukkitX and Endstone are listed for engine selection, but cannot be installed until Android-compatible runtimes are verified. PocketMine downloads are SHA-256 checked; device startup and LAN joining still need testing.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
+        OutlinedButton(
+            onClick = onInstallJavaRuntime,
+            modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp).height(48.dp),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text("INSTALL JAVA 21 · ANDROID ARM64", fontWeight = FontWeight.Bold)
+        }
+        Text("Java 21 is installed separately and checked with java -version. PowerNukkitX remains unverified on Android; installing Java alone does not install or guarantee that server engine. Device startup and LAN joining still need testing.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
         Spacer(Modifier.height(12.dp))
         SettingRow("Device diagnostics · C++", nativeReport)
         SettingRow("Network access", "Remote play needs connectivity testing")
