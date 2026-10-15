@@ -104,6 +104,7 @@ class ServerHostService : Service() {
         }
         try {
             val profileDir = File(filesDir, "worlds/$safeId").apply { mkdirs() }
+            configureLocalXboxAuthentication(profileDir)
             val started = ProcessBuilder(php.absolutePath, phar.absolutePath, "--no-wizard")
                 .directory(profileDir)
                 .redirectErrorStream(true)
@@ -137,6 +138,28 @@ class ServerHostService : Service() {
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
         }
+    }
+
+    /**
+     * This is a phone-hosted LAN test server. Disable server-side Xbox identity validation
+     * so a Bedrock client is not rejected by the engine's Xbox-auth gate. Only use this
+     * on a trusted LAN: player names are not authenticated by the server in this mode.
+     */
+    private fun configureLocalXboxAuthentication(profileDir: File) {
+        val propertiesFile = File(profileDir, "server.properties")
+        val existing = if (propertiesFile.isFile) propertiesFile.readLines(Charsets.UTF_8) else emptyList()
+        var replaced = false
+        val updated = existing.map { line ->
+            if (line.substringBefore('#').trim().startsWith("xbox-auth=")) {
+                replaced = true
+                "xbox-auth=off"
+            } else {
+                line
+            }
+        }.toMutableList()
+        if (!replaced) updated.add("xbox-auth=off")
+        propertiesFile.writeText(updated.joinToString("\\n") + "\\n", Charsets.UTF_8)
+        log("LAN compatibility: server-side Xbox authentication is OFF; use only on a trusted network because player identity is not verified.")
     }
 
     private fun restartEngine(profileId: String) {
