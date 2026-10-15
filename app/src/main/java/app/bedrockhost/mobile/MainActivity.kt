@@ -106,7 +106,7 @@ private fun CraftNodeApp() {
     val context = LocalContext.current
     var page by remember { mutableStateOf(Page.Play) }
     var selectedProfile by remember { mutableStateOf("Survival World") }
-    var notice by remember { mutableStateOf("Choose a world to manage your server.") }
+    var notice by remember { mutableStateOf("Choose a world to manage your server.") }\n    var selectedEngine by remember { mutableStateOf("PocketMine-MP") }
 
     Surface(Modifier.fillMaxSize(), color = Background) {
         Column(
@@ -169,7 +169,7 @@ private fun CraftNodeApp() {
                     entries = listOf("Survival World" to "Local profile · Backup not created", "Creative Test" to "Local profile · Backup not created"),
                     onPick = { selectedProfile = it; notice = "$it selected."; page = Page.Play }
                 )
-                Page.Settings -> SettingsPage(nativeReport = NativeDiagnostics.report(), onInstallEngine = {
+                Page.Settings -> SettingsPage(nativeReport = NativeDiagnostics.report(), selectedEngine = selectedEngine, onSelectEngine = { selectedEngine = it }, onInstallEngine = {
                     val intent = Intent(context, ServerHostService::class.java)
                         .setAction(ServerHostService.ACTION_INSTALL)
                     ContextCompat.startForegroundService(context, intent)
@@ -453,22 +453,47 @@ private fun ListPage(
 }
 
 @Composable
-private fun SettingsPage(nativeReport: String, onInstallEngine: () -> Unit) {
+private fun SettingsPage(nativeReport: String, selectedEngine: String, onSelectEngine: (String) -> Unit, onInstallEngine: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         Text("Settings", color = TextMain, fontSize = 28.sp, fontWeight = FontWeight.Black)
         Spacer(Modifier.height(5.dp))
         Text("Customize your CraftNode experience.", color = Muted, fontSize = 13.sp)
         Spacer(Modifier.height(18.dp))
-        SettingRow("Server software", "PocketMine-MP for Bedrock · Android ARM64 runtime")
+        Text("Server software", color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        listOf(
+            Triple("PocketMine-MP", "Available to install · Android ARM64 runtime", true),
+            Triple("PowerNukkitX", "Java 21+ server · Android runtime not verified", false),
+            Triple("Endstone", "Official Bedrock server wrapper · Android ARM64 unsupported by upstream", false)
+        ).forEach { engine ->
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                    .border(1.dp, if (selectedEngine == engine.first) Purple else Line, RoundedCornerShape(13.dp))
+                    .clickable { onSelectEngine(engine.first) },
+                colors = CardDefaults.cardColors(containerColor = Panel),
+                shape = RoundedCornerShape(13.dp)
+            ) {
+                Row(Modifier.fillMaxWidth().padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(engine.first, color = TextMain, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Spacer(Modifier.height(3.dp))
+                        Text(engine.second, color = Muted, fontSize = 10.sp, lineHeight = 14.sp)
+                    }
+                    Text(if (selectedEngine == engine.first) "SELECTED" else if (engine.third) "READY" else "PLANNED",
+                        color = if (selectedEngine == engine.first) Green else Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
         Button(
             onClick = onInstallEngine,
+            enabled = selectedEngine == "PocketMine-MP",
             modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp).height(50.dp),
             shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Purple, contentColor = Color.White)
+            colors = ButtonDefaults.buttonColors(containerColor = Purple, contentColor = Color.White, disabledContainerColor = Line, disabledContentColor = Muted)
         ) {
-            Text("INSTALL BEDROCK ENGINE", fontWeight = FontWeight.Black, letterSpacing = 0.5.sp)
+            Text(if (selectedEngine == "PocketMine-MP") "INSTALL POCKETMINE-MP" else "ENGINE NOT AVAILABLE YET", fontWeight = FontWeight.Black, letterSpacing = 0.5.sp)
         }
-        Text("Downloads official upstream files and verifies SHA-256 before installation. First startup and LAN joining still need testing.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
+        Text("PowerNukkitX and Endstone are listed for engine selection, but cannot be installed until Android-compatible runtimes are verified. PocketMine downloads are SHA-256 checked; device startup and LAN joining still need testing.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
         Spacer(Modifier.height(12.dp))
         SettingRow("Device diagnostics · C++", nativeReport)
         SettingRow("Network access", "Remote play needs connectivity testing")
