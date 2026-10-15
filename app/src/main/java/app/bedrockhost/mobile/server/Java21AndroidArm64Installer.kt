@@ -13,7 +13,8 @@ import org.apache.commons.compress.compressors.xz.XZCompressorInputStream
 
 /**
  * Installs a checksum-pinned OpenJDK 21 runtime compiled for Android ARM64.
- * This installs the runtime only; it does not claim PowerNukkitX is Android-supported.\n * The caller must supply Android codeCacheDir to avoid non-executable filesDir restrictions.
+ * This installs the runtime only; it does not claim PowerNukkitX is Android-supported.
+ * The caller must supply Android codeCacheDir to avoid non-executable filesDir restrictions.
  */
 class Java21AndroidArm64Installer(private val filesDir: File) {
     data class InstallResult(val javaExecutable: File, val versionOutput: String)
@@ -38,7 +39,8 @@ class Java21AndroidArm64Installer(private val filesDir: File) {
             val java = extracted.walkTopDown().maxDepth(5).firstOrNull {
                 it.isFile && it.name == "java" && it.parentFile?.name == "bin"
             } ?: error("The archive did not contain a Java executable.")
-            Os.chmod(java.absolutePath, 365)\n            check(java.canExecute()) { "Java executable permission could not be set." }
+            Os.chmod(java.absolutePath, 365)
+            check(java.canExecute()) { "Java executable permission could not be set." }
 
             onProgress("Checking Java runtime version…")
             val libs = extracted.walkTopDown().filter {

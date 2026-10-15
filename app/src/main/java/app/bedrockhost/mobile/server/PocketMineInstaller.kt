@@ -12,7 +12,8 @@ import java.util.zip.GZIPInputStream
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 
 /**
- * Installs a pinned PocketMine-MP release and its official Android ARM64 PHP runtime.\n * The caller must supply Android codeCacheDir because filesDir may be non-executable on some Android builds.
+ * Installs a pinned PocketMine-MP release and its official Android ARM64 PHP runtime.
+ * The caller must supply Android codeCacheDir because filesDir may be non-executable on some Android builds.
  * This is a community Bedrock server implementation, not Mojang's official vanilla server.
  */
 class PocketMineInstaller(private val filesDir: File) {
@@ -55,7 +56,8 @@ class PocketMineInstaller(private val filesDir: File) {
             it.isFile && it.name == "php" && it.parentFile?.name?.startsWith("bin") == true
         } ?: copiedRuntime.walkTopDown().firstOrNull { it.isFile && it.name == "php" }
         check(targetPhp != null) { "PHP executable disappeared during installation." }
-        Os.chmod(targetPhp.absolutePath, 365)\n        check(targetPhp.canExecute()) { "PHP executable permission could not be set." }
+        Os.chmod(targetPhp.absolutePath, 365)
+        check(targetPhp.canExecute()) { "PHP executable permission could not be set." }
         val targetPhar = File(target, "PocketMine-MP.phar")
         check(serverPhar.copyTo(targetPhar, overwrite = true).length() > 1_000_000L) {
             "PocketMine-MP download is incomplete."
@@ -76,7 +78,8 @@ class PocketMineInstaller(private val filesDir: File) {
             check(target.renameTo(engineRoot)) { "Could not activate the installed engine." }
             val installedRelativePath = targetPhp.relativeTo(copiedRuntime).invariantSeparatorsPath
             val installedPhp = File(engineRoot, "runtime/$installedRelativePath")
-            check(installedPhp.isFile && installedPhp.canExecute()) { "PHP runtime failed its post-install check." }\n            check(installedPhp.parentFile?.canonicalPath?.startsWith(engineRoot.canonicalPath) == true) { "PHP runtime escaped the engine directory." }
+            check(installedPhp.isFile && installedPhp.canExecute()) { "PHP runtime failed its post-install check." }
+            check(installedPhp.parentFile?.canonicalPath?.startsWith(engineRoot.canonicalPath) == true) { "PHP runtime escaped the engine directory." }
             check(File(engineRoot, "PocketMine-MP.phar").length() > 1_000_000L) {
                 "PocketMine-MP failed its post-install check."
             }
