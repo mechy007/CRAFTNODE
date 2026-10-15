@@ -35,6 +35,14 @@ jobs:
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;36.0.0" "ndk;27.2.12479018" "cmake;3.22.1"
 
+      - name: Set up Python for project checks
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run Python project safety checks
+        run: python tools/validate_project.py
+
       - name: Run unit tests and build APK
         run: gradle --no-daemon testDebugUnitTest assembleDebug
 
