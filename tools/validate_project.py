@@ -33,7 +33,8 @@ def main() -> int:
     require("engine-previous" in installer, "engine activation retains rollback support")
     require("libphp.so" in workflow and "sha256sum --check" in workflow and "readelf -h" in workflow,
             "CI checksum-verifies and architecture-checks the bundled PHP executable")
-    require('keepDebugSymbols += "**/libphp.so"' in gradle and 'useLegacyPackaging = true' in gradle,
+    packaging_ok = re.search(r'keepDebugSymbols\s*\+=\s*["\']\*\*/libphp\.so["\']', gradle) and re.search(r'useLegacyPackaging\s*=\s*true', gradle)
+    require(bool(packaging_ok),
             "Android packaging extracts the bundled PHP executable into nativeLibraryDir")
     require('versionCode = 104' in gradle and 'versionName = "1.0.4"' in gradle,
             "version code and name are bumped")
