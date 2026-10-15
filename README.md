@@ -15,7 +15,7 @@ CraftNode is an Android-first Minecraft Bedrock community-server manager, design
 
 ## Current status
 
-**Early scaffold — not yet a working server host.** The initial Android UI is a foundation only. The server runtime must pass a feasibility test before server hosting is advertised as working.
+**Early scaffold — local hosting is still under validation. Remote panel management is an optional feature and requires a compatible Client API key.** The initial Android UI is a foundation only. The server runtime must pass a feasibility test before server hosting is advertised as working.
 
 ## Build
 
@@ -32,3 +32,8 @@ See [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md).
 - Back up worlds before risky changes.
 - Do not expose server addresses or credentials unnecessarily.
 - Android background execution and mobile-network restrictions mean 24/7 uptime and remote access cannot be guaranteed.
+
+
+## Remote CraftNode panel
+
+The CraftNode tab can connect to a compatible Pterodactyl Client API panel over HTTPS to list servers, view resource status, send power requests, and submit console commands. A Client API key is required; the app does not persist that key. Provider-side API access may be disabled. Remote panel management does not provide free cloud RAM or create a hosted server.
