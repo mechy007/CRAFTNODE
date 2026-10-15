@@ -13,14 +13,11 @@ import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.concurrent.thread
 
 /**
- * App-owned process supervisor. It starts only an engine executable installed under
- * filesDir/engine/bin/server; no arbitrary external paths are accepted.
- *
- * CraftNode does not yet ship a verified Bedrock engine, so START reports a clear error
- * until a licensed Android-compatible engine is installed in that private directory.
+ * App-owned process supervisor. It starts only an engine installed in app-private storage.
+ * The Bedrock engine installer is not wired yet, so missing runtime is reported honestly.
  */
 class ServerHostService : Service() {
-    private var process: Process? = null
+    @Volatile private var process: Process? = null
     private var logThread: Thread? = null
     private val listeners = CopyOnWriteArrayList<(String) -> Unit>()
     private val logFile by lazy { File(filesDir, "logs/server-console.log").apply { parentFile?.mkdirs() } }
@@ -67,18 +64,19 @@ class ServerHostService : Service() {
         }
         try {
             val world = File(filesDir, "worlds/$safeId").apply { mkdirs() }
-            process = ProcessBuilder(executable.absolutePath, "--world-dir", world.absolutePath)
+            val started = ProcessBuilder(executable.absolutePath, "--world-dir", world.absolutePath)
                 .directory(File(filesDir, "engine"))
                 .redirectErrorStream(true)
                 .start()
-            log("Engine process started for profile $safeId (PID ${process?.pid()}).")
+            process = started
+            log("Engine process started for profile $safeId.")
             logThread = thread(name = "CraftNode-Server-Logs") {
-                process?.inputStream?.bufferedReader()?.useLines { lines ->
+                started.inputStream.bufferedReader().useLines { lines ->
                     lines.forEach { line -> log(line) }
                 }
-                val exit = process?.waitFor()
+                val exit = runCatching { started.waitFor() }.getOrNull()
                 log("Engine process exited with code ${exit ?: "unknown"}.")
-                process = null
+                if (process === started) process = null
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
