@@ -145,7 +145,7 @@ class ServerHostService : Service() {
             if (running != null && running.isAlive) {
                 log("Restart requested: sending stop command.")
                 runCatching {
-                    running.outputStream.write("stop\\n".toByteArray(Charsets.UTF_8))
+                    running.outputStream.write("stop\n".toByteArray(Charsets.UTF_8))
                     running.outputStream.flush()
                 }
                 try {
