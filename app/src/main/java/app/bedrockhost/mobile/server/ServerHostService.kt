@@ -67,6 +67,10 @@ class ServerHostService : Service() {
                 startEngine(intent.getStringExtra(EXTRA_PROFILE_ID) ?: "survival")
             }
             ACTION_STOP -> stopEngine()
+            ACTION_RESTART -> {
+                startForeground(NOTIFICATION_ID, notification("Restarting PocketMine-MP"))
+                restartEngine(intent.getStringExtra(EXTRA_PROFILE_ID) ?: "survival")
+            }
             else -> stopSelf()
         }
         return START_NOT_STICKY
@@ -135,6 +139,32 @@ class ServerHostService : Service() {
         }
     }
 
+    private fun restartEngine(profileId: String) {
+        thread(name = "CraftNode-Server-Restart") {
+            val running = process
+            if (running != null && running.isAlive) {
+                log("Restart requested: sending stop command.")
+                runCatching {
+                    running.outputStream.write("stop\\n".toByteArray(Charsets.UTF_8))
+                    running.outputStream.flush()
+                }
+                try {
+                    if (!running.waitFor(8, java.util.concurrent.TimeUnit.SECONDS)) {
+                        log("Restart: graceful stop timed out; terminating process.")
+                        running.destroy()
+                        if (!running.waitFor(3, java.util.concurrent.TimeUnit.SECONDS)) running.destroyForcibly()
+                    }
+                } catch (e: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    log("Restart interrupted; server was not restarted.")
+                    return@thread
+                }
+            }
+            if (process === running) process = null
+            startEngine(profileId)
+        }
+    }
+
     @Synchronized
     private fun stopEngine() {
         val running = process
@@ -198,6 +228,7 @@ class ServerHostService : Service() {
         const val ACTION_START = "app.bedrockhost.mobile.server.START"
         const val ACTION_COMMAND = "app.bedrockhost.mobile.server.COMMAND"
         const val ACTION_STOP = "app.bedrockhost.mobile.server.STOP"
+        const val ACTION_RESTART = "app.bedrockhost.mobile.server.RESTART"
         const val EXTRA_PROFILE_ID = "profile_id"
         const val EXTRA_COMMAND = "command"
         private const val CHANNEL_ID = "craftnode_server"
