@@ -66,3 +66,20 @@ Reference:
 ### Release gate
 
 The current v1.0.0 APK is a UI/build preview and is not a working server host. Runtime installation, engine launch, device-level LAN tests, and remote tests remain incomplete. A CI build alone does not prove hosting works.
+
+## Additional requested engines (2026-10-15)
+
+### PowerNukkitX
+- Added to CraftNode's engine catalog as **planned / Android runtime not verified**.
+- Upstream requires Java 21+ and lists Windows, Linux and macOS; Android is not an officially listed host OS. It also requires at least 2 GB RAM and does not support behavior packs.
+- Before enabling installation, CraftNode needs an Android-compatible ARM64 Java 21 runtime, verified upstream release asset and SHA-256, successful app-private launch, world persistence and LAN client tests.
+- Sources: https://powernukkitx.org/docs/requirements ; https://powernukkitx.org/docs/faq
+
+### Endstone
+- Added to CraftNode's engine catalog as **planned / Android ARM64 unsupported by upstream**.
+- Endstone wraps Mojang's Bedrock Dedicated Server and provides Python/C++ plugin APIs. Upstream native server support is Windows/Linux x86-64; Mojang's official BDS downloads are for Windows and Ubuntu/Linux on Intel/AMD x86-64. That does not directly run on an ARM64 Android phone.
+- Do not install the x86-64 server binary on Android or claim it works through emulation. An Android-compatible upstream build/runtime would need to exist and pass licensing, launch, world and client-connection checks before this option can be enabled.
+- Sources: https://endstone.dev/latest/getting-started/installation/ ; https://next.endstone.dev/docs ; https://www.minecraft.net/en-us/download/server/bedrock
+
+### Current UI behavior
+The Settings engine catalog now lists all three engines. Only PocketMine-MP is install-enabled; PowerNukkitX and Endstone remain visibly marked as planned/unverified. This is intentional, not a claim that either server is already runnable on Android.
