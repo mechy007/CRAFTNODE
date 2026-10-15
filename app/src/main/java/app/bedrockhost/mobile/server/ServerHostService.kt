@@ -29,15 +29,15 @@ class ServerHostService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_INSTALL -> {
-                startForeground(NOTIFICATION_ID, notification("Installing Bedrock server engine"))
+                startForeground(NOTIFICATION_ID, notification("Installing NovaMine Bedrock server engine"))
                 thread(name = "CraftNode-Engine-Install") {
                     try {
-                        PocketMineInstaller(codeCacheDir).install { message ->
+                        PocketMineInstaller(codeCacheDir, assets).install { message ->
                             log(message)
                             updateNotification(message)
                         }
                         log("Engine installation complete in Android code cache. Start it once to finish first-run setup.")
-                        updateNotification("PocketMine-MP installed")
+                        updateNotification("NovaMine Bedrock engine installed")
                         stopForeground(STOP_FOREGROUND_REMOVE)
                         stopSelf(startId)
                     } catch (e: Exception) {
@@ -63,7 +63,7 @@ class ServerHostService : Service() {
                 } else log("Command rejected: empty, too long, or contains a line break.")
             }
             ACTION_START -> {
-                startForeground(NOTIFICATION_ID, notification("Starting PocketMine-MP"))
+                startForeground(NOTIFICATION_ID, notification("Starting NovaMine Bedrock server"))
                 startEngine(intent.getStringExtra(EXTRA_PROFILE_ID) ?: "survival")
             }
             ACTION_STOP -> stopEngine()
@@ -97,7 +97,7 @@ class ServerHostService : Service() {
         } ?: engineRoot.walkTopDown().firstOrNull { it.isFile && it.name == "php" }
         val php = bundledPhp.takeIf { it.isFile && it.canExecute() } ?: extractedPhp
         if (!phar.isFile || php == null || !php.canExecute()) {
-            log("Start failed: PocketMine-MP is not installed. Use Settings > Install Bedrock Engine first.")
+            log("Start failed: Bedrock server engine is not installed. Use Settings > Install Bedrock Engine first.")
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             return
@@ -121,11 +121,11 @@ class ServerHostService : Service() {
                 }
                 .start()
             process = started
-            log("PocketMine-MP process started for profile $safeId using ${if (php == bundledPhp) "APK-bundled PHP" else "extracted PHP fallback"}; waiting for server readiness.")
+            log("NovaMine process started for profile $safeId using ${if (php == bundledPhp) "APK-bundled PHP" else "extracted PHP fallback"}; waiting for server readiness.")
             logThread = thread(name = "CraftNode-Server-Logs") {
                 started.inputStream.bufferedReader().useLines { lines -> lines.forEach { log(it) } }
                 val exit = runCatching { started.waitFor() }.getOrNull()
-                log("PocketMine-MP exited with code ${exit ?: "unknown"}.")
+                log("NovaMine exited with code ${exit ?: "unknown"}.")
                 if (process === started) process = null
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
