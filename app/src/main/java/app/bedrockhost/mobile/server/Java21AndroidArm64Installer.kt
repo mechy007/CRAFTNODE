@@ -13,7 +13,7 @@ import org.apache.commons.compress.compressors.xz.XZCompressorInputStream
 
 /**
  * Installs a checksum-pinned OpenJDK 21 runtime compiled for Android ARM64.
- * This installs the runtime only; it does not claim PowerNukkitX is Android-supported.
+ * This installs the runtime only; it does not claim PowerNukkitX is Android-supported.\n * The caller must supply Android codeCacheDir to avoid non-executable filesDir restrictions.
  */
 class Java21AndroidArm64Installer(private val filesDir: File) {
     data class InstallResult(val javaExecutable: File, val versionOutput: String)
@@ -38,7 +38,7 @@ class Java21AndroidArm64Installer(private val filesDir: File) {
             val java = extracted.walkTopDown().maxDepth(5).firstOrNull {
                 it.isFile && it.name == "java" && it.parentFile?.name == "bin"
             } ?: error("The archive did not contain a Java executable.")
-            Os.chmod(java.absolutePath, 493)
+            Os.chmod(java.absolutePath, 365)\n            check(java.canExecute()) { "Java executable permission could not be set." }
 
             onProgress("Checking Java runtime version…")
             val libs = extracted.walkTopDown().filter {
@@ -71,7 +71,7 @@ class Java21AndroidArm64Installer(private val filesDir: File) {
             try {
                 check(extracted.renameTo(root)) { "Could not activate Java runtime." }
                 val installedJava = File(root, java.relativeTo(extracted).invariantSeparatorsPath)
-                check(installedJava.isFile && installedJava.canExecute()) { "Installed Java executable is missing." }
+                check(installedJava.isFile && installedJava.canExecute()) { "Installed Java executable is missing or not executable." }
                 if (previous.exists()) previous.deleteRecursively()
                 onProgress("Java 21 Android ARM64 runtime installed and version-checked.")
                 return InstallResult(installedJava, output)

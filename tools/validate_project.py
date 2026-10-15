@@ -42,7 +42,7 @@ def main() -> int:
             "Java runtime archive uses XZ decoding and path traversal checks")
     require("containsMatchIn(output)" in java_installer and "ACTION_INSTALL_JAVA21" in (ROOT / "app/src/main/java/app/bedrockhost/mobile/server/ServerHostService.kt").read_text(),
             "Java 21 launch verification is wired to the service")
-    require("org.tukaani:xz:1.10" in gradle, "XZ decompression dependency is declared")
+    require("org.tukaani:xz:1.10" in gradle, "XZ decompression dependency is declared")\n    service = (ROOT / "app/src/main/java/app/bedrockhost/mobile/server/ServerHostService.kt").read_text()\n    require("PocketMineInstaller(codeCacheDir)" in service and "Java21AndroidArm64Installer(codeCacheDir)" in service,\n            "native runtimes install under Android code cache instead of filesDir")\n    require("File(codeCacheDir, \"engine\")" in service, "PocketMine engine launches from code cache")\n    require("Os.chmod(targetPhp.absolutePath, 365)" in installer and "Os.chmod(java.absolutePath, 365)" in java_installer,\n            "PHP and Java executables receive explicit read/execute permissions")
     return 0
 
 

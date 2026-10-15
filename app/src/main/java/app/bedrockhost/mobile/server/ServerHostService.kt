@@ -32,11 +32,11 @@ class ServerHostService : Service() {
                 startForeground(NOTIFICATION_ID, notification("Installing Bedrock server engine"))
                 thread(name = "CraftNode-Engine-Install") {
                     try {
-                        PocketMineInstaller(filesDir).install { message ->
+                        PocketMineInstaller(codeCacheDir).install { message ->
                             log(message)
                             updateNotification(message)
                         }
-                        log("Engine installation complete. Start it once to finish first-run setup.")
+                        log("Engine installation complete in Android code cache. Start it once to finish first-run setup.")
                         updateNotification("PocketMine-MP installed")
                         stopForeground(STOP_FOREGROUND_REMOVE)
                         stopSelf(startId)
@@ -52,11 +52,11 @@ class ServerHostService : Service() {
                 startForeground(NOTIFICATION_ID, notification("Installing Java 21 Android ARM64"))
                 thread(name = "CraftNode-Java21-Install") {
                     try {
-                        val result = Java21AndroidArm64Installer(filesDir).install { message ->
+                        val result = Java21AndroidArm64Installer(codeCacheDir).install { message ->
                             log(message)
                             updateNotification(message)
                         }
-                        log("Java runtime verified: ${result.javaExecutable.absolutePath}")
+                        log("Java runtime verified from Android code cache: ${result.javaExecutable.absolutePath}")
                         log(result.versionOutput.trim())
                         updateNotification("Java 21 ARM64 runtime ready")
                     } catch (e: Exception) {
@@ -91,7 +91,7 @@ class ServerHostService : Service() {
             stopSelf()
             return
         }
-        val engineRoot = File(filesDir, "engine")
+        val engineRoot = File(codeCacheDir, "engine")
         val phar = File(engineRoot, "PocketMine-MP.phar")
         val php = engineRoot.walkTopDown().firstOrNull {
             it.isFile && it.name == "php" && it.parentFile?.name?.startsWith("bin") == true
