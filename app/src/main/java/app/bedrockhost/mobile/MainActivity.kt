@@ -106,7 +106,8 @@ private fun CraftNodeApp() {
     val context = LocalContext.current
     var page by remember { mutableStateOf(Page.Play) }
     var selectedProfile by remember { mutableStateOf("Survival World") }
-    var notice by remember { mutableStateOf("Choose a world to manage your server.") }\n    var selectedEngine by remember { mutableStateOf("PocketMine-MP") }
+    var notice by remember { mutableStateOf("Choose a world to manage your server.") }
+    var selectedEngine by remember { mutableStateOf("PocketMine-MP") }
 
     Surface(Modifier.fillMaxSize(), color = Background) {
         Column(
