@@ -202,6 +202,7 @@ private fun CraftNodeApp() {
                                     Page.Play -> Icons.Default.Home
                                     Page.Servers -> Icons.Default.Cloud
                                     Page.Worlds -> Icons.Default.Folder
+                                    Page.Console -> Icons.Default.Terminal
                                     Page.Settings -> Icons.Default.Settings
                                 },
                                 contentDescription = item.label
