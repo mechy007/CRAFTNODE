@@ -68,6 +68,19 @@ class ServerHostService : Service() {
                     }
                 }
             }
+            ACTION_COMMAND -> {
+                val command = intent.getStringExtra(EXTRA_COMMAND)?.trim().orEmpty()
+                if (command.isNotBlank() && command.length <= 512 && !command.contains('\n') && !command.contains('\r')) {
+                    val running = process
+                    if (running?.isAlive == true) {
+                        runCatching {
+                            running.outputStream.write((command.removePrefix("/") + "\n").toByteArray(Charsets.UTF_8))
+                            running.outputStream.flush()
+                            log("Console command sent: $command")
+                        }.onFailure { log("Command failed: ${it.message ?: "unknown error"}") }
+                    } else log("Command ignored: no active server process.")
+                } else log("Command rejected: empty, too long, or contains a line break.")
+            }
             ACTION_START -> {
                 startForeground(NOTIFICATION_ID, notification("Starting PocketMine-MP"))
                 startEngine(intent.getStringExtra(EXTRA_PROFILE_ID) ?: "survival")
@@ -198,9 +211,11 @@ class ServerHostService : Service() {
     companion object {
         const val ACTION_INSTALL = "app.bedrockhost.mobile.server.INSTALL"
         const val ACTION_START = "app.bedrockhost.mobile.server.START"
+        const val ACTION_COMMAND = "app.bedrockhost.mobile.server.COMMAND"
         const val ACTION_INSTALL_JAVA21 = "app.bedrockhost.mobile.server.INSTALL_JAVA21"
         const val ACTION_STOP = "app.bedrockhost.mobile.server.STOP"
         const val EXTRA_PROFILE_ID = "profile_id"
+        const val EXTRA_COMMAND = "command"
         private const val CHANNEL_ID = "craftnode_server"
         private const val NOTIFICATION_ID = 401
     }
