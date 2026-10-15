@@ -128,6 +128,7 @@ private fun CraftNodeApp() {
                 }
             }
 
+            Box(Modifier.weight(1f)) {
             when (page) {
                 Page.Play -> PlayPage(
                     selectedProfile = selectedProfile,
@@ -150,8 +151,8 @@ private fun CraftNodeApp() {
                 )
                 Page.Settings -> SettingsPage()
             }
+            }
 
-            Spacer(Modifier.weight(1f))
             NavigationBar(
                 containerColor = Panel,
                 contentColor = TextMain,
@@ -196,7 +197,7 @@ private fun PlayPage(
     onOpen: (Page) -> Unit
 ) {
     LazyColumn(
-        modifier = Modifier.weightlessFill(),
+        modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, bottom = 18.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -443,4 +444,3 @@ private fun SettingRow(title: String, detail: String) {
     }
 }
 
-private fun Modifier.weightlessFill(): Modifier = this.fillMaxWidth().weight(1f)
