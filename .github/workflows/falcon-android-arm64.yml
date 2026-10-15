@@ -1,0 +1,84 @@
+name: Falcon Android ARM64 Engine Build
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/falcon-android-arm64.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-falcon-android:
+    name: Cross-compile Falcon for Android ARM64
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout CraftNode
+        uses: actions/checkout@v4
+
+      - name: Checkout pinned Falcon source
+        uses: actions/checkout@v4
+        with:
+          repository: Falcon-MC/Falcon
+          ref: v1.0.3
+          path: third_party/Falcon
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build cmake git curl zip unzip tar pkg-config
+
+      - name: Install Android SDK and NDK
+        uses: android-actions/setup-android@v3
+      - name: Install pinned NDK
+        run: sdkmanager "ndk;27.2.12479018"
+
+      - name: Bootstrap vcpkg
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git "$RUNNER_TEMP/vcpkg"
+          "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+          echo "VCPKG_ROOT=$RUNNER_TEMP/vcpkg" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+
+      - name: Build Android dependencies
+        run: |
+          "$VCPKG_ROOT/vcpkg" install openssl:arm64-android zlib:arm64-android
+
+      - name: Configure Falcon with Android NDK
+        env:
+          FALCON_BUILD_VERSION: "1.26.52.01"
+        run: |
+          cmake -S third_party/Falcon -B build-falcon-android -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=arm64-android \
+            -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE="$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_PLATFORM=android-26 \
+            -DOPENSSL_USE_STATIC_LIBS=ON \
+            -DOPENSSL_ROOT_DIR="$VCPKG_ROOT/installed/arm64-android" \
+            -DZLIB_USE_STATIC_LIBS=ON \
+            -DFALCON_BUILD_VERSION="$FALCON_BUILD_VERSION"
+          cmake --build build-falcon-android --parallel 2
+
+      - name: Verify Android ARM64 binary
+        run: |
+          set -euo pipefail
+          BIN="build-falcon-android/Falcon.Server/FalconServer"
+          test -f "$BIN"
+          file "$BIN"
+          readelf -h "$BIN" | grep -q "AArch64"
+          mkdir -p dist
+          cp "$BIN" dist/FalconServer-android-arm64
+          sha256sum dist/FalconServer-android-arm64 > dist/FalconServer-android-arm64.sha256
+          printf 'Target: Minecraft Bedrock 1.26.52\nProtocol: 2193\nArchitecture: Android ARM64\nBuild source: Falcon v1.0.3\n' > dist/BUILD_INFO.txt
+
+      - name: Upload experimental engine artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Falcon-1.26.52-android-arm64-experimental
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30
