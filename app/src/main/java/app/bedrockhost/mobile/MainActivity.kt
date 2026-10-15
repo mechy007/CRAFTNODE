@@ -516,14 +516,14 @@ private fun ConsolePage(logFile: File, onBack: () -> Unit, onStop: () -> Unit) {
     var logText by remember { mutableStateOf("No server log yet. Install the engine, then try starting a server.") }
     fun refreshLogs() {
         logText = if (logFile.isFile) {
-            runCatching { logFile.readLines().takeLast(350).joinToString("\n") }
+            runCatching { logFile.readLines().takeLast(350).joinToString("\n") { formatConsoleLine(it) } }
                 .getOrElse { "Could not read log: ${it.message}" }
                 .ifBlank { "Log file is empty." }
         } else {
             "No server log yet. Install the engine, then try starting a server."
         }
     }
-    androidx.compose.runtime.LaunchedEffect(logFile) { refreshLogs() }
+    androidx.compose.runtime.LaunchedEffect(logFile) { while (true) { refreshLogs(); kotlinx.coroutines.delay(1500) } }
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -557,6 +557,15 @@ private fun ConsolePage(logFile: File, onBack: () -> Unit, onStop: () -> Unit) {
             }
         }
     }
+}
+
+private fun formatConsoleLine(line: String): String {
+    val separator = line.indexOf(' ')
+    if (separator != 13) return line
+    val millis = line.substring(0, separator).toLongOrNull() ?: return line
+    val time = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
+        .format(java.util.Date(millis))
+    return "[$time] ${line.substring(separator + 1)}"
 }
 
 @Composable
