@@ -182,13 +182,6 @@ private fun CraftNodeApp() {
                         ContextCompat.startForegroundService(context, intent)
                         notice = "Installing verified PocketMine-MP and Android ARM64 PHP runtime."
                     },
-                    onInstallJavaRuntime = {
-                        val intent = Intent(context, ServerHostService::class.java)
-                            .setAction(ServerHostService.ACTION_INSTALL_JAVA21)
-                        ContextCompat.startForegroundService(context, intent)
-                        notice = "Installing checksum-verified Java 21 Android ARM64 runtime."
-                        page = Page.Console
-                    }
                 )
                 Page.Console -> ConsolePage(
                     logFile = File(context.filesDir, "logs/server-console.log"),
@@ -470,7 +463,7 @@ private fun ListPage(
 }
 
 @Composable
-private fun SettingsPage(nativeReport: String, selectedEngine: String, onSelectEngine: (String) -> Unit, onInstallEngine: () -> Unit, onInstallJavaRuntime: () -> Unit) {
+private fun SettingsPage(nativeReport: String, selectedEngine: String, onSelectEngine: (String) -> Unit, onInstallEngine: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         Text("Settings", color = TextMain, fontSize = 28.sp, fontWeight = FontWeight.Black)
         Spacer(Modifier.height(5.dp))
@@ -479,9 +472,7 @@ private fun SettingsPage(nativeReport: String, selectedEngine: String, onSelectE
         Text("Server software", color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         listOf(
-            Triple("PocketMine-MP", "Available to install · Android ARM64 runtime", true),
-            Triple("PowerNukkitX", "Java 21+ server · Android runtime not verified", false),
-            Triple("Endstone", "Official Bedrock server wrapper · Android ARM64 unsupported by upstream", false)
+            Triple("PocketMine-MP", "Bedrock server · Android ARM64 PHP runtime", true)
         ).forEach { engine ->
             Card(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
@@ -510,20 +501,13 @@ private fun SettingsPage(nativeReport: String, selectedEngine: String, onSelectE
         ) {
             Text(if (selectedEngine == "PocketMine-MP") "INSTALL POCKETMINE-MP" else "ENGINE NOT AVAILABLE YET", fontWeight = FontWeight.Black, letterSpacing = 0.5.sp)
         }
-        OutlinedButton(
-            onClick = onInstallJavaRuntime,
-            modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp).height(48.dp),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Text("INSTALL JAVA 21 · ANDROID ARM64", fontWeight = FontWeight.Bold)
-        }
-        Text("Java 21 is installed separately and checked with java -version. PowerNukkitX remains unverified on Android; installing Java alone does not install or guarantee that server engine. Device startup and LAN joining still need testing.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
+        Text("Bedrock hosting uses PocketMine-MP and PHP; Java server support is not included in this build.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
         Spacer(Modifier.height(12.dp))
         SettingRow("Device diagnostics · C++", nativeReport)
         SettingRow("Network access", "Remote play needs connectivity testing")
         SettingRow("World storage", "Local-first")
         SettingRow("CraftMind AI", "Not connected")
-        SettingRow("App version", "1.0.1 · Preview")
+        SettingRow("App version", "1.0.3 · Preview")
     }
 }
 
