@@ -1,6 +1,7 @@
 package app.bedrockhost.mobile
 
 import android.content.Intent
+import java.io.File
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -174,6 +175,15 @@ private fun CraftNodeApp() {
                     ContextCompat.startForegroundService(context, intent)
                     notice = "Installing verified PocketMine-MP and Android ARM64 PHP runtime."
                 })
+                Page.Console -> ConsolePage(
+                    logFile = File(context.filesDir, "logs/server-console.log"),
+                    onBack = { page = Page.Play },
+                    onStop = {
+                        val intent = Intent(context, ServerHostService::class.java)
+                            .setAction(ServerHostService.ACTION_STOP)
+                        ContextCompat.startForegroundService(context, intent)
+                    }
+                )
             }
             }
 
@@ -182,7 +192,7 @@ private fun CraftNodeApp() {
                 contentColor = TextMain,
                 windowInsets = WindowInsets.navigationBars
             ) {
-                Page.entries.forEach { item ->
+                listOf(Page.Play, Page.Servers, Page.Worlds, Page.Settings).forEach { item ->
                     NavigationBarItem(
                         selected = page == item,
                         onClick = { page = item },
@@ -243,7 +253,7 @@ private fun PlayPage(
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                ToolCard(Icons.Default.Terminal, "Console", "Logs & commands", Purple, Modifier.weight(1f)) { onOpen(Page.Servers) }
+                ToolCard(Icons.Default.Terminal, "Console", "Live server logs", Purple, Modifier.weight(1f)) { onOpen(Page.Console) }
                 ToolCard(Icons.Default.Cloud, "Players", "Access & whitelist", TileBlue, Modifier.weight(1f)) { onOpen(Page.Servers) }
             }
         }
@@ -463,6 +473,54 @@ private fun SettingsPage(onInstallEngine: () -> Unit) {
         SettingRow("World storage", "Local-first")
         SettingRow("CraftMind AI", "Not connected")
         SettingRow("App version", "0.1.0 · Preview")
+    }
+}
+
+@Composable
+private fun ConsolePage(logFile: File, onBack: () -> Unit, onStop: () -> Unit) {
+    var logText by remember { mutableStateOf("No server log yet. Install the engine, then try starting a server.") }
+    fun refreshLogs() {
+        logText = if (logFile.isFile) {
+            runCatching { logFile.readLines().takeLast(350).joinToString("\\n") }
+                .getOrElse { "Could not read log: ${it.message}" }
+                .ifBlank { "Log file is empty." }
+        } else {
+            "No server log yet. Install the engine, then try starting a server."
+        }
+    }
+    androidx.compose.runtime.LaunchedEffect(logFile) { refreshLogs() }
+    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Server console", color = TextMain, fontSize = 25.sp, fontWeight = FontWeight.Black)
+                Text("Persisted output from the server process", color = Muted, fontSize = 12.sp)
+            }
+            OutlinedButton(onClick = { refreshLogs() }) { Text("Refresh") }
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = onStop, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF9E3D59))) {
+                Text("STOP SERVER")
+            }
+            OutlinedButton(onClick = onBack) { Text("Back") }
+        }
+        Spacer(Modifier.height(12.dp))
+        Surface(
+            modifier = Modifier.fillMaxSize().border(1.dp, Line, RoundedCornerShape(12.dp)),
+            color = Color(0xFF0B0A10),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            LazyColumn(contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp)) {
+                item {
+                    Text(
+                        logText,
+                        color = Color(0xFFB8F7C8),
+                        fontSize = 10.sp,
+                        lineHeight = 15.sp
+                    )
+                }
+            }
+        }
     }
 }
 
