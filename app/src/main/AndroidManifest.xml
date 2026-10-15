@@ -5,9 +5,10 @@
 
     <application
         android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
         android:label="CraftNode"
         android:supportsRtl="true"
-        android:theme="@android:style/Theme.Material.NoActionBar">
+        android:theme="@style/CraftNodeTheme">
         <activity
             android:name=".MainActivity"
             android:exported="true">
