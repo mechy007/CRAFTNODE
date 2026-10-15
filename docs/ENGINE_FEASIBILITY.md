@@ -44,3 +44,25 @@ Sources:
 ## Decision
 
 Do not wire the Start Server button to a simulated success. Until the proof passes, the UI must report that no compatible runtime is installed or verified. Do not advertise remote multiplayer or 24/7 uptime as guaranteed.
+
+
+## Updated implementation direction (2026-10-15)
+
+A public Android server-management project, Minexa/MineServe Mobile, documents a working pattern for no-root Android hosting: bootstrap a Termux-compatible user-space runtime into app-private storage, launch the server as a child process, stream stdin/stdout/stderr, and keep a foreground service while running. Its architecture is a reference for feasibility, not code copied into CraftNode.
+
+Reference:
+- https://github.com/lovehutaocute/Minexa
+- https://github.com/lovehutaocute/Minexa/blob/master/ARCHITECTURE.md
+
+### CraftNode implementation sequence
+
+1. Add a first-run runtime installer with pinned downloads, SHA-256 verification, progress, cancellation, and cleanup on failure.
+2. Implement an app-private process runner and foreground service with real process state and log streaming.
+3. Add one Bedrock engine adapter first; validate Android ARM64 compatibility and license before bundling or downloading its files.
+4. Verify create-world, stop/restart persistence, and a real LAN client connection on a physical Android device.
+5. Add remote access only after LAN works; use a supported tunnel or network path and explain NAT/CGNAT limitations.
+6. Connect the frozen Compose UI to runtime state; never show RUNNING until the engine readiness signal is observed.
+
+### Release gate
+
+The current v1.0.0 APK is a UI/build preview and is not a working server host. Runtime installation, engine launch, device-level LAN tests, and remote tests remain incomplete. A CI build alone does not prove hosting works.
