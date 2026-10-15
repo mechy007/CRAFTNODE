@@ -25,6 +25,29 @@ jobs:
           ref: v1.0.3
           path: third_party/Falcon
 
+      - name: Patch missing Android TCP protocol header
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE="third_party/Falcon/Falcon.Server/src/Core/Net/HttpsClient.cpp"
+          # Falcon v1.0.3 uses IPPROTO_TCP but omits its declaring header on
+          # Android's NDK libc headers. Add the standard POSIX header only if absent.
+          python3 - "$SOURCE" <<'PY'
+          from pathlib import Path
+          import sys
+          path = Path(sys.argv[1])
+          source = path.read_text()
+          include = "#include <netinet/in.h>"
+          if include not in source:
+              marker = "#include <netdb.h>"
+              if marker not in source:
+                  raise SystemExit("Could not find netdb include in HttpsClient.cpp")
+              source = source.replace(marker, marker + "\\n" + include, 1)
+              path.write_text(source)
+          if include not in path.read_text():
+              raise SystemExit("Failed to apply Android TCP header patch")
+          PY
+
       - name: Install build tools
         run: |
           sudo apt-get update
