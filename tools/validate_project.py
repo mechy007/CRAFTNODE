@@ -24,19 +24,21 @@ def main() -> int:
     dashboard = (ROOT / "app/src/main/java/app/bedrockhost/mobile/LocalHostDashboard.kt").read_text()
 
     hashes = re.findall(r'"([0-9a-f]{64})"', installer)
-    require(len(hashes) >= 2, "PocketMine and PHP downloads have pinned SHA-256 checksums")
-    require("PocketMine-MP/releases/download/5.44.3/" in installer, "PocketMine release URL is version-pinned")
-    require("downloadVerified(" in installer and "SHA-256 verification failed" in installer,
-            "runtime downloads are checksum-verified")
+    require(len(hashes) >= 1, "PHP runtime download has a pinned SHA-256 checksum")
+    require("Zinkaio/NovaMine/e37d378d35b7ecb46ee5a6b9838a6d8261da2b24/NovaMine.phar" in installer, "NovaMine server URL is pinned to an immutable commit")
+    require("downloadVerified(" in installer and "SHA-256 verification failed" in installer and 'assets.open("novamine.sha256")' in installer,
+            "PHP and NovaMine downloads are checksum-verified")
     require("entry.name" in installer and "Unsafe path found" in installer,
             "archive extraction checks canonical paths")
     require("engine-previous" in installer, "engine activation retains rollback support")
     require("libphp.so" in workflow and "sha256sum --check" in workflow and "readelf -h" in workflow,
             "CI checksum-verifies and architecture-checks the bundled PHP executable")
+    require("Prepare pinned NovaMine checksum asset" in workflow and "app/src/main/assets/novamine.sha256" in workflow,
+            "CI pins and checksums the NovaMine Bedrock-compatible engine")
     packaging_ok = re.search(r'keepDebugSymbols\s*\+=\s*["\']\*\*/libphp\.so["\']', gradle) and re.search(r'useLegacyPackaging\s*=\s*true', gradle)
     require(bool(packaging_ok),
             "Android packaging extracts the bundled PHP executable into nativeLibraryDir")
-    require('versionCode = 104' in gradle and 'versionName = "1.0.4"' in gradle,
+    require('versionCode = 105' in gradle and 'versionName = "1.0.5"' in gradle,
             "version code and name are bumped")
     require('ndkVersion = "27.2.12479018"' in gradle and 'src/main/cpp/CMakeLists.txt' in gradle,
             "Android build pins NDK and enables CMake")
