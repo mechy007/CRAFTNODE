@@ -108,6 +108,7 @@ private fun CraftNodeApp() {
     var selectedProfile by remember { mutableStateOf("Survival World") }
     var notice by remember { mutableStateOf("Choose a world to manage your server.") }
     var selectedEngine by remember { mutableStateOf("PocketMine-MP") }
+    var selectedMinecraftVersion by remember { mutableStateOf("1.26.51") }
 
     Surface(Modifier.fillMaxSize(), color = Background) {
         Column(
@@ -176,6 +177,8 @@ private fun CraftNodeApp() {
                     nativeReport = NativeDiagnostics.report(),
                     selectedEngine = selectedEngine,
                     onSelectEngine = { selectedEngine = it },
+                    selectedMinecraftVersion = selectedMinecraftVersion,
+                    onSelectMinecraftVersion = { selectedMinecraftVersion = it },
                     onInstallEngine = {
                         val intent = Intent(context, ServerHostService::class.java)
                             .setAction(ServerHostService.ACTION_INSTALL)
@@ -463,12 +466,42 @@ private fun ListPage(
 }
 
 @Composable
-private fun SettingsPage(nativeReport: String, selectedEngine: String, onSelectEngine: (String) -> Unit, onInstallEngine: () -> Unit) {
+private fun SettingsPage(nativeReport: String, selectedEngine: String, onSelectEngine: (String) -> Unit, selectedMinecraftVersion: String, onSelectMinecraftVersion: (String) -> Unit, onInstallEngine: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         Text("Settings", color = TextMain, fontSize = 28.sp, fontWeight = FontWeight.Black)
         Spacer(Modifier.height(5.dp))
         Text("Customize your CraftNode experience.", color = Muted, fontSize = 13.sp)
         Spacer(Modifier.height(18.dp))
+        Text("Minecraft version", color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(5.dp))
+        Text("Choose the client version your server should accept.", color = Muted, fontSize = 11.sp, lineHeight = 15.sp)
+        Spacer(Modifier.height(8.dp))
+        listOf(
+            Triple("1.26.51", "NovaMine · protocol 2193 · Android ARM64 ready", true),
+            Triple("1.26.52", "Falcon · protocol 2193 · Android ARM64 build not available yet", false)
+        ).forEach { version ->
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                    .border(1.dp, if (selectedMinecraftVersion == version.first) Purple else Line, RoundedCornerShape(13.dp))
+                    .clickable { onSelectMinecraftVersion(version.first) },
+                colors = CardDefaults.cardColors(containerColor = Panel),
+                shape = RoundedCornerShape(13.dp)
+            ) {
+                Row(Modifier.fillMaxWidth().padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Minecraft Bedrock ${version.first}", color = TextMain, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Spacer(Modifier.height(3.dp))
+                        Text(version.second, color = Muted, fontSize = 10.sp, lineHeight = 14.sp)
+                    }
+                    Text(if (selectedMinecraftVersion == version.first) "SELECTED" else if (version.third) "READY" else "PLANNED",
+                        color = if (selectedMinecraftVersion == version.first) Green else Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+        if (selectedMinecraftVersion == "1.26.52") {
+            Text("1.26.52 is selectable for planning, but cannot be installed yet: Falcon currently publishes a Linux x64 server binary, not an Android ARM64 build. The app will not install an incompatible binary.", color = Color(0xFFFFC76A), fontSize = 11.sp, lineHeight = 16.sp)
+            Spacer(Modifier.height(8.dp))
+        }
         Text("Server software", color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         listOf(
@@ -494,20 +527,20 @@ private fun SettingsPage(nativeReport: String, selectedEngine: String, onSelectE
         }
         Button(
             onClick = onInstallEngine,
-            enabled = selectedEngine == "PocketMine-MP",
+            enabled = selectedEngine == "PocketMine-MP" && selectedMinecraftVersion == "1.26.51",
             modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp).height(50.dp),
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Purple, contentColor = Color.White, disabledContainerColor = Line, disabledContentColor = Muted)
         ) {
-            Text(if (selectedEngine == "PocketMine-MP") "INSTALL POCKETMINE-MP" else "ENGINE NOT AVAILABLE YET", fontWeight = FontWeight.Black, letterSpacing = 0.5.sp)
+            Text(if (selectedMinecraftVersion != "1.26.51") "ANDROID ENGINE NOT AVAILABLE" else if (selectedEngine == "PocketMine-MP") "INSTALL BEDROCK 1.26.51 ENGINE" else "ENGINE NOT AVAILABLE YET", fontWeight = FontWeight.Black, letterSpacing = 0.5.sp)
         }
-        Text("Bedrock hosting uses PocketMine-MP and PHP; Java server support is not included in this build.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
+        Text("Protocol 2193 is shared by Bedrock 1.26.51 and 1.26.52, but that alone does not guarantee gameplay compatibility. CraftNode keeps the verified NovaMine 1.26.51 engine as the installable option until an Android-compatible 1.26.52 engine is built and tested.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
         Spacer(Modifier.height(12.dp))
         SettingRow("Device diagnostics · C++", nativeReport)
         SettingRow("Network access", "Remote play needs connectivity testing")
         SettingRow("World storage", "Local-first")
         SettingRow("CraftMind AI", "Not connected")
-        SettingRow("App version", "1.0.3 · Preview")
+        SettingRow("App version", "1.0.7 · Version selector preview")
     }
 }
 
