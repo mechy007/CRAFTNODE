@@ -43,7 +43,7 @@ def main() -> int:
     packaging_ok = re.search(r'keepDebugSymbols\s*\+=\s*["\']\*\*/libphp\.so["\']', gradle) and re.search(r'useLegacyPackaging\s*=\s*true', gradle)
     require(bool(packaging_ok),
             "Android packaging extracts the bundled PHP executable into nativeLibraryDir")
-    require('versionCode = 105' in gradle and 'versionName = "1.0.5"' in gradle,
+    require('versionCode = 106' in gradle and 'versionName = "1.0.6"' in gradle,
             "version code and name are bumped")
     require('ndkVersion = "27.2.12479018"' in gradle and 'src/main/cpp/CMakeLists.txt' in gradle,
             "Android build pins NDK and enables CMake")
@@ -56,6 +56,8 @@ def main() -> int:
             "server prefers PHP packaged in Android nativeLibraryDir")
     require("PHPRC" in service and "LD_LIBRARY_PATH" in service,
             "server process receives PHP configuration and native library paths")
+    require("configureLocalXboxAuthentication(profileDir)" in service and '"xbox-auth=off"' in service,
+            "LAN server disables the Xbox-auth gate and logs the reduced identity-verification warning")
     require("ACTION_RESTART" in service and "restartEngine(intent.getStringExtra(EXTRA_PROFILE_ID)" in service
             and "ServerHostService.ACTION_RESTART" in dashboard,
             "restart control is wired from the dashboard to the server service")
