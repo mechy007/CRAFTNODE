@@ -67,8 +67,21 @@ class ServerHostService : Service() {
                 } else log("Command rejected: empty, too long, or contains a line break.")
             }
             ACTION_START -> {
-                startForeground(NOTIFICATION_ID, notification("Starting NovaMine Bedrock server"))
-                startEngine(intent.getStringExtra(EXTRA_PROFILE_ID) ?: "survival", intent.getStringExtra(EXTRA_ENGINE_ID) ?: ENGINE_NOVAMINE)
+                val requestedEngine = intent.getStringExtra(EXTRA_ENGINE_ID)
+                val savedEngine = getSharedPreferences("craftnode_settings", MODE_PRIVATE)
+                    .getString("selected_engine", "PocketMine-MP")
+                // Recover if the Activity sends a stale/default ID while Falcon is the saved selection.
+                val resolvedEngine = when {
+                    requestedEngine == ENGINE_FALCON -> ENGINE_FALCON
+                    savedEngine == "Falcon (experimental)" -> ENGINE_FALCON
+                    requestedEngine == ENGINE_NOVAMINE || requestedEngine == null -> ENGINE_NOVAMINE
+                    else -> requestedEngine
+                }
+                log("Start request received: requestedEngine=" + (requestedEngine ?: "missing") +
+                    ", savedSelection=" + (savedEngine ?: "missing") + ", resolvedEngine=" + resolvedEngine)
+                startForeground(NOTIFICATION_ID, notification("Starting " +
+                    (if (resolvedEngine == ENGINE_FALCON) "Falcon experimental" else "NovaMine") + " server"))
+                startEngine(intent.getStringExtra(EXTRA_PROFILE_ID) ?: "survival", resolvedEngine)
             }
             ACTION_STOP -> stopEngine()
             ACTION_RESTART -> {
