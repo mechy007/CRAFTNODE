@@ -98,7 +98,7 @@ class MainActivity : ComponentActivity() {
 }
 
 private enum class Page(val label: String) {
-    Play("Play"), Host("Host"), Servers("Servers"), Worlds("Worlds"), Console("Console"), CraftNode("CraftNode"), Settings("Settings")
+    Play("Home"), Host("Host"), Console("Console"), Settings("Settings")
 }
 
 @Composable
@@ -166,20 +166,7 @@ private fun CraftNodeApp() {
                     },
                     onOpen = { page = it }
                 )
-                Page.Servers -> ListPage(
-                    title = "Your servers",
-                    subtitle = "Pick a profile to manage.",
-                    entries = listOf("Survival World" to "Default world · Not started", "Friends SMP" to "Private world · Not started", "Creative Test" to "Build world · Not started"),
-                    onPick = { selectedProfile = it; notice = "$it selected."; page = Page.Play }
-                )
-                Page.Worlds -> ListPage(
-                    title = "World library",
-                    subtitle = "World import and backup controls will live here.",
-                    entries = listOf("Survival World" to "Local profile · Backup not created", "Creative Test" to "Local profile · Backup not created"),
-                    onPick = { selectedProfile = it; notice = "$it selected."; page = Page.Play }
-                )
                 Page.Host -> LocalHostDashboard(onOpenConsole = { page = Page.Console })
-                Page.CraftNode -> CraftNodeTab()
                 Page.Settings -> SettingsPage(
                     nativeReport = NativeDiagnostics.report(),
                     selectedEngine = selectedEngine,
@@ -217,7 +204,7 @@ private fun CraftNodeApp() {
                 contentColor = TextMain,
                 windowInsets = WindowInsets.navigationBars
             ) {
-                listOf(Page.Play, Page.Host, Page.Servers, Page.Worlds, Page.CraftNode, Page.Settings).forEach { item ->
+                listOf(Page.Play, Page.Host, Page.Console, Page.Settings).forEach { item ->
                     NavigationBarItem(
                         selected = page == item,
                         onClick = { page = item },
@@ -226,10 +213,7 @@ private fun CraftNodeApp() {
                                 when (item) {
                                     Page.Play -> Icons.Default.Home
                                     Page.Host -> Icons.Default.Gamepad
-                                    Page.Servers -> Icons.Default.Cloud
-                                    Page.Worlds -> Icons.Default.Folder
                                     Page.Console -> Icons.Default.Terminal
-                                    Page.CraftNode -> Icons.Default.Cloud
                                     Page.Settings -> Icons.Default.Settings
                                 },
                                 contentDescription = item.label
@@ -265,8 +249,8 @@ private fun PlayPage(
     ) {
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatusPill("SERVER STATUS", "OFFLINE", Green)
-                StatusPill("ACTIVE PLAYERS", "--", Muted)
+                StatusPill("SERVER STATUS", "CHECK CONSOLE", Muted)
+                StatusPill("PLAYERS", "UNAVAILABLE", Muted)
             }
         }
         item {
@@ -281,41 +265,9 @@ private fun PlayPage(
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                ToolCard(Icons.Default.Terminal, "Console", "Live server logs", Purple, Modifier.weight(1f)) { onOpen(Page.Console) }
-                ToolCard(Icons.Default.Cloud, "Players", "Access & whitelist", TileBlue, Modifier.weight(1f)) { onOpen(Page.Servers) }
+                ToolCard(Icons.Default.Terminal, "Console", "Real server logs", Purple, Modifier.weight(1f)) { onOpen(Page.Console) }
+                ToolCard(Icons.Default.Tune, "Settings", "Engine & version", TilePink, Modifier.weight(1f)) { onOpen(Page.Settings) }
             }
-        }
-        item {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                ToolCard(Icons.Default.Folder, "Worlds", "Import & backups", TileOrange, Modifier.weight(1f)) { onOpen(Page.Worlds) }
-                ToolCard(Icons.Default.Tune, "Settings", "Server properties", TilePink, Modifier.weight(1f)) { onOpen(Page.Settings) }
-            }
-        }
-        item {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Panel),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.fillMaxWidth().border(1.dp, Line, RoundedCornerShape(16.dp))
-            ) {
-                Row(Modifier.padding(15.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(42.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF302448)), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Widgets, contentDescription = null, tint = Green, modifier = Modifier.size(24.dp))
-                    }
-                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                        Text("CRAFTMIND", color = TextMain, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
-                        Text("Your AI co-admin", color = Green, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.height(4.dp))
-                        Text("Plan worlds, understand logs and get setup guidance.", color = Muted, fontSize = 12.sp, lineHeight = 17.sp)
-                    }
-                }
-            }
-        }
-        item {
-            Text(
-                "LOCAL-FIRST  •  ENGINE INTEGRATION IN PROGRESS",
-                color = Muted.copy(alpha = 0.72f), fontSize = 9.sp, letterSpacing = 1.sp,
-                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-            )
         }
     }
 }
@@ -361,7 +313,7 @@ private fun HeroCard(
             Column(Modifier.fillMaxWidth().padding(20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(7.dp).clip(CircleShape).background(Green))
-                    Text("  READY TO CONFIGURE", color = Green, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+                    Text("  LOCAL SERVER", color = Green, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
                 }
                 Spacer(Modifier.height(26.dp))
                 Text(selectedProfile.uppercase(), color = TextMain, fontSize = 31.sp, fontWeight = FontWeight.Black, lineHeight = 35.sp)
@@ -383,7 +335,7 @@ private fun HeroCard(
                     ) {
                         Icon(Icons.Default.Folder, contentDescription = null, modifier = Modifier.size(17.dp))
                         Spacer(Modifier.width(7.dp))
-                        Text("Change world", fontSize = 12.sp)
+                        Text("Select profile", fontSize = 12.sp)
                     }
                 }
                 Spacer(Modifier.height(10.dp))
@@ -552,11 +504,10 @@ private fun SettingsPage(nativeReport: String, selectedEngine: String, onSelectE
         }
         Text("Falcon is an experimental native Android build. Its checksum is verified before installation, and it is stored separately from NovaMine. Actual device launch and multiplayer compatibility are not yet confirmed.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
         Spacer(Modifier.height(12.dp))
-        SettingRow("Device diagnostics · C++", nativeReport)
-        SettingRow("Network access", "Remote play needs connectivity testing")
-        SettingRow("World storage", "Local-first")
-        SettingRow("CraftMind AI", "Not connected")
-        SettingRow("App version", "1.0.8 · Experimental Falcon integration")
+        SettingRow("Engine diagnostics", nativeReport)
+        SettingRow("World data", "Stored locally in app-private storage. Avoid uninstalling the app until worlds are backed up.")
+        SettingRow("Experimental engine", "Falcon is experimental; keep NovaMine installed until device compatibility is confirmed.")
+        SettingRow("App version", "1.0.13")
     }
 }
 
