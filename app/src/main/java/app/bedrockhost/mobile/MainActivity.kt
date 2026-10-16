@@ -269,8 +269,12 @@ private fun RemoteAccessPage() {
     val context = LocalContext.current
     var tailscaleIp by remember { mutableStateOf("") }
     var copied by remember { mutableStateOf(false) }
+    var launchNotice by remember { mutableStateOf("") }
     val address = tailscaleIp.trim()
-    val validIp = address.matches(Regex("""^(100\.(?:[0-9]{1,3}\.){2}[0-9]{1,3}|[0-9]{1,3}(?:\.[0-9]{1,3}){3})$"""))
+    val octets = address.split(".")
+    val validIp = octets.size == 4 && octets.all { it.toIntOrNull() in 0..255 }
+    val serverAddress = "$address:19132"
+
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 10.dp)) {
         Text("Remote access", color = TextMain, fontSize = 28.sp, fontWeight = FontWeight.Black)
         Spacer(Modifier.height(5.dp))
@@ -282,7 +286,7 @@ private fun RemoteAccessPage() {
                 Spacer(Modifier.height(8.dp))
                 Text("Use Tailscale on both Android phones", color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(6.dp))
-                Text("1. Install Tailscale on the host and joining phones.\n2. Sign both into the same private Tailscale network.\n3. Start CraftNode and confirm the server is ready in Console.\n4. Enter the host phone's Tailscale IPv4 address below.\n5. On the joining phone, open Minecraft → Servers → Add Server.", color = Muted, fontSize = 12.sp, lineHeight = 18.sp)
+                Text("1. Install Tailscale on the host and joining phones.\n2. Sign both into the same private Tailscale network.\n3. Start CraftNode and confirm the server is ready in Console.\n4. Enter the host phone's Tailscale IPv4 address below.\n5. Use the new OPEN IN MINECRAFT button to hand the server address to Minecraft.", color = Muted, fontSize = 12.sp, lineHeight = 18.sp)
             }
         }
         Spacer(Modifier.height(14.dp))
@@ -290,7 +294,7 @@ private fun RemoteAccessPage() {
         Spacer(Modifier.height(6.dp))
         OutlinedTextField(
             value = tailscaleIp,
-            onValueChange = { tailscaleIp = it.filter { ch -> ch.isDigit() || ch == '.' }.take(15); copied = false },
+            onValueChange = { tailscaleIp = it.filter { ch -> ch.isDigit() || ch == '.' }.take(15); copied = false; launchNotice = "" },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             placeholder = { Text("100.x.y.z") },
@@ -298,20 +302,42 @@ private fun RemoteAccessPage() {
         )
         Spacer(Modifier.height(6.dp))
         Text("Server address", color = Muted, fontSize = 11.sp)
-        Text(if (validIp) "$address:19132" else "Enter a valid IPv4 address to prepare the address.", color = if (validIp) Green else Muted, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        Text(if (validIp) serverAddress else "Enter a valid IPv4 address to prepare the address.", color = if (validIp) Green else Muted, fontSize = 15.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         Button(
             onClick = {
                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                clipboard.setPrimaryClip(ClipData.newPlainText("CraftNode Bedrock server", "$address:19132"))
+                clipboard.setPrimaryClip(ClipData.newPlainText("CraftNode Bedrock server", serverAddress))
                 copied = true
             },
             enabled = validIp,
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = Purple)
         ) { Text(if (copied) "ADDRESS COPIED" else "COPY SERVER ADDRESS") }
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(
+            onClick = {
+                val uri = android.net.Uri.Builder()
+                    .scheme("minecraft")
+                    .appendQueryParameter("addExternalServer", "CraftNode|$serverAddress")
+                    .build()
+                val intent = Intent(Intent.ACTION_VIEW, uri)
+                try {
+                    context.startActivity(intent)
+                    launchNotice = "Minecraft opened with a request to add this server. If it only opens the game, add $serverAddress manually in Servers."
+                } catch (_: android.content.ActivityNotFoundException) {
+                    launchNotice = "Minecraft could not be opened. Make sure Minecraft Bedrock is installed, then try again."
+                }
+            },
+            enabled = validIp,
+            modifier = Modifier.fillMaxWidth()
+        ) { Text("OPEN IN MINECRAFT") }
+        if (launchNotice.isNotBlank()) {
+            Spacer(Modifier.height(6.dp))
+            Text(launchNotice, color = if (launchNotice.startsWith("Minecraft could")) Color(0xFFFFC76A) else Muted, fontSize = 11.sp, lineHeight = 16.sp)
+        }
         Spacer(Modifier.height(12.dp))
-        Text("Use port 19132 unless the server console/configuration shows another port. Tailscale provides the private network path; CraftNode does not install or control Tailscale, and connectivity is not verified automatically.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
+        Text("This hands the address to Minecraft if the installed version supports the deep link. Android/Minecraft may not join the server automatically; if it doesn't, add the address in Minecraft → Servers. Tailscale provides the private network path; CraftNode does not control Tailscale or verify connectivity.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
         Spacer(Modifier.height(10.dp))
         Text("Security note: the current engine configuration disables Xbox identity verification for compatibility. Only share access with people you trust.", color = Color(0xFFFFC76A), fontSize = 11.sp, lineHeight = 16.sp)
     }
