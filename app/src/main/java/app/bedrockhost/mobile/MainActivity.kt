@@ -154,6 +154,7 @@ private fun CraftNodeApp() {
                         val intent = Intent(context, ServerHostService::class.java)
                             .setAction(ServerHostService.ACTION_START)
                             .putExtra(ServerHostService.EXTRA_PROFILE_ID, profileId)
+                            .putExtra(ServerHostService.EXTRA_ENGINE_ID, if (selectedEngine == "Falcon (experimental)") ServerHostService.ENGINE_FALCON else ServerHostService.ENGINE_NOVAMINE)
                         ContextCompat.startForegroundService(context, intent)
                         notice = "Starting PocketMine-MP. Check Console for real startup logs."
                     },
@@ -180,10 +181,11 @@ private fun CraftNodeApp() {
                     selectedMinecraftVersion = selectedMinecraftVersion,
                     onSelectMinecraftVersion = { selectedMinecraftVersion = it },
                     onInstallEngine = {
+                        val installFalcon = selectedEngine == "Falcon (experimental)"
                         val intent = Intent(context, ServerHostService::class.java)
-                            .setAction(ServerHostService.ACTION_INSTALL)
+                            .setAction(if (installFalcon) ServerHostService.ACTION_INSTALL_FALCON else ServerHostService.ACTION_INSTALL)
                         ContextCompat.startForegroundService(context, intent)
-                        notice = "Installing verified PocketMine-MP and Android ARM64 PHP runtime."
+                        notice = if (installFalcon) "Downloading and verifying experimental Falcon Android ARM64 engine." else "Installing verified NovaMine and Android ARM64 PHP runtime."
                     },
                 )
                 Page.Console -> ConsolePage(
@@ -478,7 +480,7 @@ private fun SettingsPage(nativeReport: String, selectedEngine: String, onSelectE
         Spacer(Modifier.height(8.dp))
         listOf(
             Triple("1.26.51", "NovaMine · protocol 2193 · Android ARM64 ready", true),
-            Triple("1.26.52", "Falcon · protocol 2193 · Android ARM64 build not available yet", false)
+            Triple("1.26.52", "Falcon · protocol 2193 · experimental Android ARM64 build", true)
         ).forEach { version ->
             Card(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
@@ -499,13 +501,14 @@ private fun SettingsPage(nativeReport: String, selectedEngine: String, onSelectE
             }
         }
         if (selectedMinecraftVersion == "1.26.52") {
-            Text("1.26.52 is selectable for planning, but cannot be installed yet: Falcon currently publishes a Linux x64 server binary, not an Android ARM64 build. The app will not install an incompatible binary.", color = Color(0xFFFFC76A), fontSize = 11.sp, lineHeight = 16.sp)
+            Text("Falcon Android ARM64 is experimental. Startup, networking, and gameplay must be tested on a real device. Keep NovaMine and your worlds untouched until verified.", color = Color(0xFFFFC76A), fontSize = 11.sp, lineHeight = 16.sp)
             Spacer(Modifier.height(8.dp))
         }
         Text("Server software", color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         listOf(
-            Triple("PocketMine-MP", "Bedrock server · Android ARM64 PHP runtime", true)
+            Triple("PocketMine-MP", "NovaMine · Minecraft 1.26.51 · stable choice", true),
+            Triple("Falcon (experimental)", "Native Android ARM64 · Minecraft 1.26.52 · testing required", true)
         ).forEach { engine ->
             Card(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
@@ -527,20 +530,21 @@ private fun SettingsPage(nativeReport: String, selectedEngine: String, onSelectE
         }
         Button(
             onClick = onInstallEngine,
-            enabled = selectedEngine == "PocketMine-MP" && selectedMinecraftVersion == "1.26.51",
+            enabled = (selectedEngine == "PocketMine-MP" && selectedMinecraftVersion == "1.26.51") ||
+                (selectedEngine == "Falcon (experimental)" && selectedMinecraftVersion == "1.26.52"),
             modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp).height(50.dp),
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Purple, contentColor = Color.White, disabledContainerColor = Line, disabledContentColor = Muted)
         ) {
-            Text(if (selectedMinecraftVersion != "1.26.51") "ANDROID ENGINE NOT AVAILABLE" else if (selectedEngine == "PocketMine-MP") "INSTALL BEDROCK 1.26.51 ENGINE" else "ENGINE NOT AVAILABLE YET", fontWeight = FontWeight.Black, letterSpacing = 0.5.sp)
+            Text(if (selectedEngine == "Falcon (experimental)") "INSTALL EXPERIMENTAL FALCON 1.26.52" else if (selectedMinecraftVersion == "1.26.51") "INSTALL NOVAMINE 1.26.51 ENGINE" else "SELECT FALCON FOR 1.26.52", fontWeight = FontWeight.Black, letterSpacing = 0.5.sp)
         }
-        Text("Protocol 2193 is shared by Bedrock 1.26.51 and 1.26.52, but that alone does not guarantee gameplay compatibility. CraftNode keeps the verified NovaMine 1.26.51 engine as the installable option until an Android-compatible 1.26.52 engine is built and tested.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
+        Text("Falcon is an experimental native Android build. Its checksum is verified before installation, and it is stored separately from NovaMine. Actual device launch and multiplayer compatibility are not yet confirmed.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
         Spacer(Modifier.height(12.dp))
         SettingRow("Device diagnostics · C++", nativeReport)
         SettingRow("Network access", "Remote play needs connectivity testing")
         SettingRow("World storage", "Local-first")
         SettingRow("CraftMind AI", "Not connected")
-        SettingRow("App version", "1.0.7 · Version selector preview")
+        SettingRow("App version", "1.0.8 · Experimental Falcon integration")
     }
 }
 
