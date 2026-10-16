@@ -7,7 +7,7 @@ on:
       - ".github/workflows/falcon-android-arm64.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-falcon-android:
@@ -114,3 +114,18 @@ jobs:
           path: dist/*
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish experimental Android engine release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: falcon-android-arm64-experimental
+          name: Falcon Android ARM64 Experimental
+          prerelease: true
+          make_latest: false
+          overwrite_files: true
+          files: |
+            dist/FalconServer-android-arm64
+            dist/FalconServer-android-arm64.sha256
+            dist/BUILD_INFO.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
