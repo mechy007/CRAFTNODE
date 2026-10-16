@@ -1,6 +1,9 @@
 package app.bedrockhost.mobile
 
 import android.content.Intent
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import java.io.File
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -49,6 +52,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
@@ -98,7 +102,7 @@ class MainActivity : ComponentActivity() {
 }
 
 private enum class Page(val label: String) {
-    Play("Home"), Host("Host"), Console("Console"), Settings("Settings")
+    Play("Home"), Host("Host"), Remote("Remote"), Console("Console"), Settings("Settings")
 }
 
 @Composable
@@ -190,6 +194,7 @@ private fun CraftNodeApp() {
                     onOpen = { page = it }
                 )
                 Page.Host -> LocalHostDashboard(onOpenConsole = { page = Page.Console })
+                Page.Remote -> RemoteAccessPage()
                 Page.Settings -> SettingsPage(
                     nativeReport = NativeDiagnostics.report(),
                     selectedEngine = selectedEngine,
@@ -227,7 +232,7 @@ private fun CraftNodeApp() {
                 contentColor = TextMain,
                 windowInsets = WindowInsets.navigationBars
             ) {
-                listOf(Page.Play, Page.Host, Page.Console, Page.Settings).forEach { item ->
+                listOf(Page.Play, Page.Host, Page.Remote, Page.Console, Page.Settings).forEach { item ->
                     NavigationBarItem(
                         selected = page == item,
                         onClick = { page = item },
@@ -236,6 +241,7 @@ private fun CraftNodeApp() {
                                 when (item) {
                                     Page.Play -> Icons.Default.Home
                                     Page.Host -> Icons.Default.Gamepad
+                                    Page.Remote -> Icons.Default.Cloud
                                     Page.Console -> Icons.Default.Terminal
                                     Page.Settings -> Icons.Default.Settings
                                 },
@@ -254,6 +260,60 @@ private fun CraftNodeApp() {
                 }
             }
         }
+    }
+}
+
+
+@Composable
+private fun RemoteAccessPage() {
+    val context = LocalContext.current
+    var tailscaleIp by remember { mutableStateOf("") }
+    var copied by remember { mutableStateOf(false) }
+    val address = tailscaleIp.trim()
+    val validIp = address.matches(Regex("""^(100\.(?:[0-9]{1,3}\.){2}[0-9]{1,3}|[0-9]{1,3}(?:\.[0-9]{1,3}){3})$"""))
+    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 10.dp)) {
+        Text("Remote access", color = TextMain, fontSize = 28.sp, fontWeight = FontWeight.Black)
+        Spacer(Modifier.height(5.dp))
+        Text("Connect a second Bedrock phone across different networks.", color = Muted, fontSize = 13.sp)
+        Spacer(Modifier.height(16.dp))
+        Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth().border(1.dp, Line, RoundedCornerShape(16.dp))) {
+            Column(Modifier.padding(16.dp)) {
+                Text("PRIVATE CONNECTION", color = Green, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.2.sp)
+                Spacer(Modifier.height(8.dp))
+                Text("Use Tailscale on both Android phones", color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(6.dp))
+                Text("1. Install Tailscale on the host and joining phones.\n2. Sign both into the same private Tailscale network.\n3. Start CraftNode and confirm the server is ready in Console.\n4. Enter the host phone's Tailscale IPv4 address below.\n5. On the joining phone, open Minecraft → Servers → Add Server.", color = Muted, fontSize = 12.sp, lineHeight = 18.sp)
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        Text("Host phone Tailscale IPv4", color = TextMain, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(6.dp))
+        OutlinedTextField(
+            value = tailscaleIp,
+            onValueChange = { tailscaleIp = it.filter { ch -> ch.isDigit() || ch == '.' }.take(15); copied = false },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            placeholder = { Text("100.x.y.z") },
+            supportingText = { Text("Find this in the Tailscale app on the host phone.") }
+        )
+        Spacer(Modifier.height(6.dp))
+        Text("Server address", color = Muted, fontSize = 11.sp)
+        Text(if (validIp) "$address:19132" else "Enter a valid IPv4 address to prepare the address.", color = if (validIp) Green else Muted, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        Button(
+            onClick = {
+                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("CraftNode Bedrock server", "$address:19132"))
+                copied = true
+            },
+            enabled = validIp,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = Purple)
+        ) { Text(if (copied) "ADDRESS COPIED" else "COPY SERVER ADDRESS") }
+        Spacer(Modifier.height(12.dp))
+        Text("Use port 19132 unless the server console/configuration shows another port. Tailscale provides the private network path; CraftNode does not install or control Tailscale, and connectivity is not verified automatically.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
+        Spacer(Modifier.height(10.dp))
+        Text("Security note: the current engine configuration disables Xbox identity verification for compatibility. Only share access with people you trust.", color = Color(0xFFFFC76A), fontSize = 11.sp, lineHeight = 16.sp)
     }
 }
 
@@ -290,7 +350,7 @@ private fun PlayPage(
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 ToolCard(Icons.Default.Terminal, "Console", "Real server logs", Purple, Modifier.weight(1f)) { onOpen(Page.Console) }
-                ToolCard(Icons.Default.Tune, "Settings", "Engine & version", TilePink, Modifier.weight(1f)) { onOpen(Page.Settings) }
+                ToolCard(Icons.Default.Cloud, "Remote access", "Private VPN setup", TileBlue, Modifier.weight(1f)) { onOpen(Page.Remote) }
             }
         }
     }
