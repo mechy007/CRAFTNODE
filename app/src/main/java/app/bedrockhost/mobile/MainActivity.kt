@@ -107,8 +107,13 @@ private fun CraftNodeApp() {
     var page by remember { mutableStateOf(Page.Play) }
     var selectedProfile by remember { mutableStateOf("Survival World") }
     var notice by remember { mutableStateOf("Choose a world to manage your server.") }
-    var selectedEngine by remember { mutableStateOf("PocketMine-MP") }
-    var selectedMinecraftVersion by remember { mutableStateOf("1.26.51") }
+    val settings = remember { context.getSharedPreferences("craftnode_settings", 0) }
+    var selectedEngine by remember {
+        mutableStateOf(settings.getString("selected_engine", "PocketMine-MP") ?: "PocketMine-MP")
+    }
+    var selectedMinecraftVersion by remember {
+        mutableStateOf(settings.getString("selected_minecraft_version", "1.26.51") ?: "1.26.51")
+    }
 
     Surface(Modifier.fillMaxSize(), color = Background) {
         Column(
@@ -156,7 +161,8 @@ private fun CraftNodeApp() {
                             .putExtra(ServerHostService.EXTRA_PROFILE_ID, profileId)
                             .putExtra(ServerHostService.EXTRA_ENGINE_ID, if (selectedEngine == "Falcon (experimental)") ServerHostService.ENGINE_FALCON else ServerHostService.ENGINE_NOVAMINE)
                         ContextCompat.startForegroundService(context, intent)
-                        notice = "Starting PocketMine-MP. Check Console for real startup logs."
+                        val engineLabel = if (selectedEngine == "Falcon (experimental)") "Falcon experimental" else "PocketMine-MP"
+                        notice = "Starting $engineLabel for Minecraft $selectedMinecraftVersion. Check Console for real startup logs."
                     },
                     onOpen = { page = it }
                 )
@@ -177,9 +183,15 @@ private fun CraftNodeApp() {
                 Page.Settings -> SettingsPage(
                     nativeReport = NativeDiagnostics.report(),
                     selectedEngine = selectedEngine,
-                    onSelectEngine = { selectedEngine = it },
+                    onSelectEngine = {
+                        selectedEngine = it
+                        settings.edit().putString("selected_engine", it).apply()
+                    },
                     selectedMinecraftVersion = selectedMinecraftVersion,
-                    onSelectMinecraftVersion = { selectedMinecraftVersion = it },
+                    onSelectMinecraftVersion = {
+                        selectedMinecraftVersion = it
+                        settings.edit().putString("selected_minecraft_version", it).apply()
+                    },
                     onInstallEngine = {
                         val installFalcon = selectedEngine == "Falcon (experimental)"
                         val intent = Intent(context, ServerHostService::class.java)
@@ -386,7 +398,7 @@ private fun HeroCard(
                     Text("START SERVER", fontWeight = FontWeight.Black, letterSpacing = 0.8.sp)
                 }
                 Spacer(Modifier.height(8.dp))
-                Text("POCKETMINE-MP BEDROCK ENGINE", color = Muted, fontSize = 9.sp, letterSpacing = 0.7.sp)
+                Text("ENGINE: SELECTED IN SETTINGS", color = Muted, fontSize = 9.sp, letterSpacing = 0.7.sp)
                 Spacer(Modifier.height(8.dp))
                 Text(notice, color = Green, fontSize = 11.sp, lineHeight = 15.sp)
             }
