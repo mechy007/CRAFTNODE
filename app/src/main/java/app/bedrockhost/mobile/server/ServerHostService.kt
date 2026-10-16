@@ -34,7 +34,7 @@ class ServerHostService : Service() {
                 thread(name = "CraftNode-Engine-Install") {
                     try {
                         if (installFalcon) {
-                            FalconInstaller(filesDir).install { message -> log(message); updateNotification(message) }
+                            FalconInstaller(File(applicationInfo.nativeLibraryDir), assets).install { message -> log(message); updateNotification(message) }
                             log("Falcon experimental engine installed; physical-device compatibility is not yet verified.")
                             updateNotification("Falcon experimental engine installed")
                         } else {
@@ -190,7 +190,7 @@ class ServerHostService : Service() {
     }
 
     private fun startFalconEngine(profileId: String) {
-        val executable = File(filesDir, "falcon-engine/FalconServer")
+        val executable = File(applicationInfo.nativeLibraryDir, "libfalcon.so")
         if (!executable.isFile || !executable.canExecute()) {
             log("Falcon start failed: install the experimental Falcon engine from Settings first.")
             stopForeground(STOP_FOREGROUND_REMOVE)
@@ -205,7 +205,7 @@ class ServerHostService : Service() {
                     environment()["TMPDIR"] = File(cacheDir, "falcon-tmp").apply { mkdirs() }.absolutePath
                 }.start()
             process = started
-            log("Experimental Falcon process launched from app-private files storage for $profileId. Readiness and gameplay remain unverified.")
+            log("Experimental Falcon process launched from Android nativeLibraryDir for $profileId. Readiness and gameplay remain unverified.")
             logThread = thread(name = "CraftNode-Falcon-Logs") {
                 started.inputStream.bufferedReader().useLines { lines -> lines.forEach { log(it) } }
                 val exit = runCatching { started.waitFor() }.getOrNull()
