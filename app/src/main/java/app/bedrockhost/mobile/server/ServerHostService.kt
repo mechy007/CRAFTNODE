@@ -34,7 +34,7 @@ class ServerHostService : Service() {
                 thread(name = "CraftNode-Engine-Install") {
                     try {
                         if (installFalcon) {
-                            FalconInstaller(File(applicationInfo.nativeLibraryDir), assets).install { message -> log(message); updateNotification(message) }
+                            FalconInstaller(File(applicationInfo.nativeLibraryDir)).install { message -> log(message); updateNotification(message) }
                             log("Falcon experimental engine installed; physical-device compatibility is not yet verified.")
                             updateNotification("Falcon experimental engine installed")
                         } else {
