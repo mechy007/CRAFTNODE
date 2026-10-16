@@ -199,10 +199,26 @@ class ServerHostService : Service() {
         }
         try {
             val profileDir = File(filesDir, "worlds/$profileId").apply { mkdirs() }
+            // Native Falcon cannot read an Android AssetManager path directly. Materialize the
+            // build-time CA bundle to app-private storage and pass common OpenSSL/cURL variables.
+            val caBundle = File(filesDir, "certs/cacert.pem").apply {
+                parentFile?.mkdirs()
+                assets.open("cacert.pem").use { input ->
+                    outputStream().use { output -> input.copyTo(output) }
+                }
+            }
+            check(caBundle.isFile && caBundle.length() > 100_000L) {
+                "Bundled CA certificate file is missing or unexpectedly small."
+            }
+            log("Falcon TLS: prepared bundled CA bundle (${caBundle.length()} bytes); certificate verification remains enabled.")
             val started = ProcessBuilder(executable.absolutePath).directory(profileDir).redirectErrorStream(true)
                 .apply {
                     environment()["HOME"] = profileDir.absolutePath
                     environment()["TMPDIR"] = File(cacheDir, "falcon-tmp").apply { mkdirs() }.absolutePath
+                    environment()["SSL_CERT_FILE"] = caBundle.absolutePath
+                    environment()["CURL_CA_BUNDLE"] = caBundle.absolutePath
+                    environment()["GIT_SSL_CAINFO"] = caBundle.absolutePath
+                    environment()["SSL_CERT_DIR"] = "/system/etc/security/cacerts"
                 }.start()
             process = started
             log("Experimental Falcon process launched from Android nativeLibraryDir for $profileId. Readiness and gameplay remain unverified.")
