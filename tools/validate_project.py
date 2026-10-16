@@ -52,7 +52,7 @@ def main() -> int:
     require('System.loadLibrary("craftnode_native")' in bridge,
             "Kotlin loads the native diagnostics library")
     require("available system RAM" in native, "native diagnostics reports system memory availability")
-    require("FalconInstaller(File(applicationInfo.nativeLibraryDir), assets)" in service and "startFalconEngine(safeId)" in service,
+    require("FalconInstaller(File(applicationInfo.nativeLibraryDir))" in service and "startFalconEngine(safeId)" in service,
             "Falcon installer and experimental launch path are wired into the service")
     falcon_installer = (ROOT / "app/src/main/java/app/bedrockhost/mobile/server/FalconInstaller.kt").read_text()
     require("nativeLibraryDir" in falcon_installer and "libfalcon.so" in falcon_installer and "sha256sum --check" in workflow and "libfalcon.so" in workflow,
