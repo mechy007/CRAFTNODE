@@ -55,8 +55,8 @@ def main() -> int:
     require("FalconInstaller(File(applicationInfo.nativeLibraryDir), assets)" in service and "startFalconEngine(safeId)" in service,
             "Falcon installer and experimental launch path are wired into the service")
     falcon_installer = (ROOT / "app/src/main/java/app/bedrockhost/mobile/server/FalconInstaller.kt").read_text()
-    require("SHA-256 verification failed" in falcon_installer and "falcon-engine-previous" in falcon_installer and "File(filesDir, \"falcon-engine\")" in falcon_installer,
-            "Falcon download is checksum-verified and installed separately with rollback support")
+    require("nativeLibraryDir" in falcon_installer and "libfalcon.so" in falcon_installer and "sha256sum --check" in workflow and "libfalcon.so" in workflow,
+            "Falcon is checksum-verified in CI and packaged in Android nativeLibraryDir")
     require("File(applicationInfo.nativeLibraryDir, \"libphp.so\")" in service,
             "server prefers PHP packaged in Android nativeLibraryDir")
     require("PHPRC" in service and "LD_LIBRARY_PATH" in service,
