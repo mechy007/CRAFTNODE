@@ -12,8 +12,8 @@ android {
         applicationId = "app.bedrockhost.mobile"
         minSdk = 26
         targetSdk = 36
-        versionCode = 111
-        versionName = "1.0.11"
+        versionCode = 112
+        versionName = "1.0.12"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -36,6 +36,7 @@ android {
         resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" }
         jniLibs {
             keepDebugSymbols += "**/libphp.so"
+            keepDebugSymbols += "**/libfalcon.so"
             // PHP is an executable ELF packaged as a .so so Android installs it
             // into nativeLibraryDir, where execution is permitted.
             useLegacyPackaging = true
