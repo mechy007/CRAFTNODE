@@ -101,10 +101,10 @@ jobs:
       - name: Rename versioned APK
         run: cp app/build/outputs/apk/debug/app-debug.apk CraftNode-v1.0.13-debug.apk
 
-      - name: Upload CraftNode v1.0.12 APK
+      - name: Upload CraftNode v1.0.13 APK
         uses: actions/upload-artifact@v4
         with:
           name: CraftNode-v1.0.13-debug-apk
-          path: CraftNode-v1.0.12-debug.apk
+          path: CraftNode-v1.0.13-debug.apk
           if-no-files-found: error
           retention-days: 30
