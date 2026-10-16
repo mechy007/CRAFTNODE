@@ -1,6 +1,9 @@
 package app.bedrockhost.mobile
 
 import android.content.Intent
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import java.io.File
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -49,6 +52,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
@@ -98,7 +102,7 @@ class MainActivity : ComponentActivity() {
 }
 
 private enum class Page(val label: String) {
-    Play("Play"), Host("Host"), Servers("Servers"), Worlds("Worlds"), Console("Console"), CraftNode("CraftNode"), Settings("Settings")
+    Play("Home"), Host("Host"), Remote("Remote"), Console("Console"), Settings("Settings")
 }
 
 @Composable
@@ -106,7 +110,22 @@ private fun CraftNodeApp() {
     val context = LocalContext.current
     var page by remember { mutableStateOf(Page.Play) }
     var selectedProfile by remember { mutableStateOf("Survival World") }
-    var notice by remember { mutableStateOf("Choose a world to manage your server.") }
+    var notice by remember { mutableStateOf("Ready. Install an engine in Settings before starting.") }
+    val serverLogFile = remember { File(context.filesDir, "logs/server-console.log") }
+    var serverRunning by remember { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(serverLogFile) {
+        while (true) {
+            val relevant = runCatching {
+                serverLogFile.readLines().lastOrNull { line ->
+                    line.contains("process started") || line.contains("process launched") ||
+                        line.contains("exited with code") || line.contains("Start failed:")
+                }.orEmpty()
+            }.getOrDefault("")
+            serverRunning = (relevant.contains("process started") || relevant.contains("process launched")) &&
+                !relevant.contains("exited with code") && !relevant.contains("Start failed:")
+            kotlinx.coroutines.delay(1200)
+        }
+    }
     val settings = remember { context.getSharedPreferences("craftnode_settings", 0) }
     var selectedEngine by remember {
         mutableStateOf(settings.getString("selected_engine", "PocketMine-MP") ?: "PocketMine-MP")
@@ -150,7 +169,14 @@ private fun CraftNodeApp() {
                     selectedProfile = selectedProfile,
                     onSelectProfile = { selectedProfile = it; notice = "$it selected." },
                     notice = notice,
+                    serverRunning = serverRunning,
                     onStart = {
+                        if (serverRunning) {
+                            val stopIntent = Intent(context, ServerHostService::class.java)
+                                .setAction(ServerHostService.ACTION_STOP)
+                            ContextCompat.startForegroundService(context, stopIntent)
+                            notice = "Stop requested. Confirm shutdown in Console."
+                        } else {
                         val profileId = when (selectedProfile) {
                             "Friends SMP" -> "friends"
                             "Creative Test" -> "creative"
@@ -162,24 +188,13 @@ private fun CraftNodeApp() {
                             .putExtra(ServerHostService.EXTRA_ENGINE_ID, if (selectedEngine == "Falcon (experimental)") ServerHostService.ENGINE_FALCON else ServerHostService.ENGINE_NOVAMINE)
                         ContextCompat.startForegroundService(context, intent)
                         val engineLabel = if (selectedEngine == "Falcon (experimental)") "Falcon experimental" else "PocketMine-MP"
-                        notice = "Starting $engineLabel for Minecraft $selectedMinecraftVersion. Check Console for real startup logs."
+                        notice = "Start requested for $engineLabel. Confirm readiness in Console."
+                        }
                     },
                     onOpen = { page = it }
                 )
-                Page.Servers -> ListPage(
-                    title = "Your servers",
-                    subtitle = "Pick a profile to manage.",
-                    entries = listOf("Survival World" to "Default world · Not started", "Friends SMP" to "Private world · Not started", "Creative Test" to "Build world · Not started"),
-                    onPick = { selectedProfile = it; notice = "$it selected."; page = Page.Play }
-                )
-                Page.Worlds -> ListPage(
-                    title = "World library",
-                    subtitle = "World import and backup controls will live here.",
-                    entries = listOf("Survival World" to "Local profile · Backup not created", "Creative Test" to "Local profile · Backup not created"),
-                    onPick = { selectedProfile = it; notice = "$it selected."; page = Page.Play }
-                )
                 Page.Host -> LocalHostDashboard(onOpenConsole = { page = Page.Console })
-                Page.CraftNode -> CraftNodeTab()
+                Page.Remote -> RemoteAccessPage()
                 Page.Settings -> SettingsPage(
                     nativeReport = NativeDiagnostics.report(),
                     selectedEngine = selectedEngine,
@@ -217,7 +232,7 @@ private fun CraftNodeApp() {
                 contentColor = TextMain,
                 windowInsets = WindowInsets.navigationBars
             ) {
-                listOf(Page.Play, Page.Host, Page.Servers, Page.Worlds, Page.CraftNode, Page.Settings).forEach { item ->
+                listOf(Page.Play, Page.Host, Page.Remote, Page.Console, Page.Settings).forEach { item ->
                     NavigationBarItem(
                         selected = page == item,
                         onClick = { page = item },
@@ -226,10 +241,8 @@ private fun CraftNodeApp() {
                                 when (item) {
                                     Page.Play -> Icons.Default.Home
                                     Page.Host -> Icons.Default.Gamepad
-                                    Page.Servers -> Icons.Default.Cloud
-                                    Page.Worlds -> Icons.Default.Folder
+                                    Page.Remote -> Icons.Default.Cloud
                                     Page.Console -> Icons.Default.Terminal
-                                    Page.CraftNode -> Icons.Default.Cloud
                                     Page.Settings -> Icons.Default.Settings
                                 },
                                 contentDescription = item.label
@@ -250,11 +263,66 @@ private fun CraftNodeApp() {
     }
 }
 
+
+@Composable
+private fun RemoteAccessPage() {
+    val context = LocalContext.current
+    var tailscaleIp by remember { mutableStateOf("") }
+    var copied by remember { mutableStateOf(false) }
+    val address = tailscaleIp.trim()
+    val validIp = address.matches(Regex("""^(100\.(?:[0-9]{1,3}\.){2}[0-9]{1,3}|[0-9]{1,3}(?:\.[0-9]{1,3}){3})$"""))
+    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 10.dp)) {
+        Text("Remote access", color = TextMain, fontSize = 28.sp, fontWeight = FontWeight.Black)
+        Spacer(Modifier.height(5.dp))
+        Text("Connect a second Bedrock phone across different networks.", color = Muted, fontSize = 13.sp)
+        Spacer(Modifier.height(16.dp))
+        Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth().border(1.dp, Line, RoundedCornerShape(16.dp))) {
+            Column(Modifier.padding(16.dp)) {
+                Text("PRIVATE CONNECTION", color = Green, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.2.sp)
+                Spacer(Modifier.height(8.dp))
+                Text("Use Tailscale on both Android phones", color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(6.dp))
+                Text("1. Install Tailscale on the host and joining phones.\n2. Sign both into the same private Tailscale network.\n3. Start CraftNode and confirm the server is ready in Console.\n4. Enter the host phone's Tailscale IPv4 address below.\n5. On the joining phone, open Minecraft → Servers → Add Server.", color = Muted, fontSize = 12.sp, lineHeight = 18.sp)
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        Text("Host phone Tailscale IPv4", color = TextMain, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(6.dp))
+        OutlinedTextField(
+            value = tailscaleIp,
+            onValueChange = { tailscaleIp = it.filter { ch -> ch.isDigit() || ch == '.' }.take(15); copied = false },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            placeholder = { Text("100.x.y.z") },
+            supportingText = { Text("Find this in the Tailscale app on the host phone.") }
+        )
+        Spacer(Modifier.height(6.dp))
+        Text("Server address", color = Muted, fontSize = 11.sp)
+        Text(if (validIp) "$address:19132" else "Enter a valid IPv4 address to prepare the address.", color = if (validIp) Green else Muted, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        Button(
+            onClick = {
+                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("CraftNode Bedrock server", "$address:19132"))
+                copied = true
+            },
+            enabled = validIp,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = Purple)
+        ) { Text(if (copied) "ADDRESS COPIED" else "COPY SERVER ADDRESS") }
+        Spacer(Modifier.height(12.dp))
+        Text("Use port 19132 unless the server console/configuration shows another port. Tailscale provides the private network path; CraftNode does not install or control Tailscale, and connectivity is not verified automatically.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
+        Spacer(Modifier.height(10.dp))
+        Text("Security note: the current engine configuration disables Xbox identity verification for compatibility. Only share access with people you trust.", color = Color(0xFFFFC76A), fontSize = 11.sp, lineHeight = 16.sp)
+    }
+}
+
 @Composable
 private fun PlayPage(
     selectedProfile: String,
     onSelectProfile: (String) -> Unit,
     notice: String,
+    serverRunning: Boolean,
     onStart: () -> Unit,
     onOpen: (Page) -> Unit
 ) {
@@ -265,12 +333,12 @@ private fun PlayPage(
     ) {
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatusPill("SERVER STATUS", "OFFLINE", Green)
-                StatusPill("ACTIVE PLAYERS", "--", Muted)
+                StatusPill("SERVER STATUS", if (serverRunning) "PROCESS RUNNING" else "OFFLINE", if (serverRunning) Green else Muted)
+                StatusPill("PLAYERS", "NOT REPORTED", Muted)
             }
         }
         item {
-            HeroCard(selectedProfile, onSelectProfile, onStart, notice)
+            HeroCard(selectedProfile, onSelectProfile, onStart, notice, serverRunning)
         }
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -281,41 +349,9 @@ private fun PlayPage(
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                ToolCard(Icons.Default.Terminal, "Console", "Live server logs", Purple, Modifier.weight(1f)) { onOpen(Page.Console) }
-                ToolCard(Icons.Default.Cloud, "Players", "Access & whitelist", TileBlue, Modifier.weight(1f)) { onOpen(Page.Servers) }
+                ToolCard(Icons.Default.Terminal, "Console", "Real server logs", Purple, Modifier.weight(1f)) { onOpen(Page.Console) }
+                ToolCard(Icons.Default.Cloud, "Remote access", "Private VPN setup", TileBlue, Modifier.weight(1f)) { onOpen(Page.Remote) }
             }
-        }
-        item {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                ToolCard(Icons.Default.Folder, "Worlds", "Import & backups", TileOrange, Modifier.weight(1f)) { onOpen(Page.Worlds) }
-                ToolCard(Icons.Default.Tune, "Settings", "Server properties", TilePink, Modifier.weight(1f)) { onOpen(Page.Settings) }
-            }
-        }
-        item {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Panel),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.fillMaxWidth().border(1.dp, Line, RoundedCornerShape(16.dp))
-            ) {
-                Row(Modifier.padding(15.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(42.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFF302448)), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Widgets, contentDescription = null, tint = Green, modifier = Modifier.size(24.dp))
-                    }
-                    Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                        Text("CRAFTMIND", color = TextMain, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
-                        Text("Your AI co-admin", color = Green, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.height(4.dp))
-                        Text("Plan worlds, understand logs and get setup guidance.", color = Muted, fontSize = 12.sp, lineHeight = 17.sp)
-                    }
-                }
-            }
-        }
-        item {
-            Text(
-                "LOCAL-FIRST  •  ENGINE INTEGRATION IN PROGRESS",
-                color = Muted.copy(alpha = 0.72f), fontSize = 9.sp, letterSpacing = 1.sp,
-                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-            )
         }
     }
 }
@@ -325,7 +361,8 @@ private fun HeroCard(
     selectedProfile: String,
     onSelectProfile: (String) -> Unit,
     onStart: () -> Unit,
-    notice: String
+    notice: String,
+    serverRunning: Boolean
 ) {
     Card(
         modifier = Modifier.fillMaxWidth().border(1.dp, Color(0xFF49366D), RoundedCornerShape(20.dp)),
@@ -361,7 +398,7 @@ private fun HeroCard(
             Column(Modifier.fillMaxWidth().padding(20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(7.dp).clip(CircleShape).background(Green))
-                    Text("  READY TO CONFIGURE", color = Green, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+                    Text("  LOCAL SERVER", color = Green, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
                 }
                 Spacer(Modifier.height(26.dp))
                 Text(selectedProfile.uppercase(), color = TextMain, fontSize = 31.sp, fontWeight = FontWeight.Black, lineHeight = 35.sp)
@@ -383,7 +420,7 @@ private fun HeroCard(
                     ) {
                         Icon(Icons.Default.Folder, contentDescription = null, modifier = Modifier.size(17.dp))
                         Spacer(Modifier.width(7.dp))
-                        Text("Change world", fontSize = 12.sp)
+                        Text("Select profile", fontSize = 12.sp)
                     }
                 }
                 Spacer(Modifier.height(10.dp))
@@ -391,11 +428,11 @@ private fun HeroCard(
                     onClick = onStart,
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Purple, contentColor = Color.White)
+                    colors = ButtonDefaults.buttonColors(containerColor = if (serverRunning) Color(0xFFB93855) else Purple, contentColor = Color.White)
                 ) {
                     Icon(Icons.Default.Gamepad, contentDescription = null)
                     Spacer(Modifier.width(9.dp))
-                    Text("START SERVER", fontWeight = FontWeight.Black, letterSpacing = 0.8.sp)
+                    Text(if (serverRunning) "STOP SERVER" else "START SERVER", fontWeight = FontWeight.Black, letterSpacing = 0.8.sp)
                 }
                 Spacer(Modifier.height(8.dp))
                 Text("ENGINE: SELECTED IN SETTINGS", color = Muted, fontSize = 9.sp, letterSpacing = 0.7.sp)
@@ -552,11 +589,10 @@ private fun SettingsPage(nativeReport: String, selectedEngine: String, onSelectE
         }
         Text("Falcon is an experimental native Android build. Its checksum is verified before installation, and it is stored separately from NovaMine. Actual device launch and multiplayer compatibility are not yet confirmed.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
         Spacer(Modifier.height(12.dp))
-        SettingRow("Device diagnostics · C++", nativeReport)
-        SettingRow("Network access", "Remote play needs connectivity testing")
-        SettingRow("World storage", "Local-first")
-        SettingRow("CraftMind AI", "Not connected")
-        SettingRow("App version", "1.0.8 · Experimental Falcon integration")
+        SettingRow("Engine diagnostics", nativeReport)
+        SettingRow("World data", "Stored locally in app-private storage. Avoid uninstalling the app until worlds are backed up.")
+        SettingRow("Experimental engine", "Falcon is experimental; keep NovaMine installed until device compatibility is confirmed.")
+        SettingRow("App version", "1.0.13")
     }
 }
 
