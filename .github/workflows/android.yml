@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build:
-    name: Test and build CraftNode v1.0.13 APK
+    name: Test and build CraftNode v1.0.14 APK
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -99,12 +99,12 @@ jobs:
         run: gradle --no-daemon testDebugUnitTest assembleDebug
 
       - name: Rename versioned APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk CraftNode-v1.0.13-debug.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk CraftNode-v1.0.14-debug.apk
 
-      - name: Upload CraftNode v1.0.13 APK
+      - name: Upload CraftNode v1.0.14 APK
         uses: actions/upload-artifact@v4
         with:
-          name: CraftNode-v1.0.13-debug-apk
-          path: CraftNode-v1.0.13-debug.apk
+          name: CraftNode-v1.0.14-debug-apk
+          path: CraftNode-v1.0.14-debug.apk
           if-no-files-found: error
           retention-days: 30
