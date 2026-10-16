@@ -43,7 +43,7 @@ def main() -> int:
     packaging_ok = re.search(r'keepDebugSymbols\s*\+=\s*["\']\*\*/libphp\.so["\']', gradle) and re.search(r'useLegacyPackaging\s*=\s*true', gradle)
     require(bool(packaging_ok),
             "Android packaging extracts the bundled PHP executable into nativeLibraryDir")
-    require('versionCode = 111' in gradle and 'versionName = "1.0.11"' in gradle,
+    require('versionCode = 112' in gradle and 'versionName = "1.0.12"' in gradle,
             "version code and name are bumped")
     require('ndkVersion = "27.2.12479018"' in gradle and 'src/main/cpp/CMakeLists.txt' in gradle,
             "Android build pins NDK and enables CMake")
@@ -52,7 +52,7 @@ def main() -> int:
     require('System.loadLibrary("craftnode_native")' in bridge,
             "Kotlin loads the native diagnostics library")
     require("available system RAM" in native, "native diagnostics reports system memory availability")
-    require("FalconInstaller(filesDir)" in service and "startFalconEngine(safeId)" in service,
+    require("FalconInstaller(File(applicationInfo.nativeLibraryDir), assets)" in service and "startFalconEngine(safeId)" in service,
             "Falcon installer and experimental launch path are wired into the service")
     falcon_installer = (ROOT / "app/src/main/java/app/bedrockhost/mobile/server/FalconInstaller.kt").read_text()
     require("SHA-256 verification failed" in falcon_installer and "falcon-engine-previous" in falcon_installer and "File(filesDir, \"falcon-engine\")" in falcon_installer,
