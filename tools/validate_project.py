@@ -43,7 +43,7 @@ def main() -> int:
     packaging_ok = re.search(r'keepDebugSymbols\s*\+=\s*["\']\*\*/libphp\.so["\']', gradle) and re.search(r'useLegacyPackaging\s*=\s*true', gradle)
     require(bool(packaging_ok),
             "Android packaging extracts the bundled PHP executable into nativeLibraryDir")
-    require('versionCode = 112' in gradle and 'versionName = "1.0.12"' in gradle,
+    require('versionCode = 113' in gradle and 'versionName = "1.0.13"' in gradle,
             "version code and name are bumped")
     require('ndkVersion = "27.2.12479018"' in gradle and 'src/main/cpp/CMakeLists.txt' in gradle,
             "Android build pins NDK and enables CMake")
@@ -54,6 +54,12 @@ def main() -> int:
     require("available system RAM" in native, "native diagnostics reports system memory availability")
     require("FalconInstaller(File(applicationInfo.nativeLibraryDir))" in service and "startFalconEngine(safeId)" in service,
             "Falcon installer and experimental launch path are wired into the service")
+    require("Bundle trusted CA certificates for native Falcon TLS" in workflow
+            and "app/src/main/assets/cacert.pem" in workflow,
+            "CI bundles the system CA trust store for Falcon native TLS")
+    require('assets.open("cacert.pem")' in service and 'environment()["SSL_CERT_FILE"]' in service
+            and 'environment()["CURL_CA_BUNDLE"]' in service,
+            "Falcon launch configures a bundled CA file without disabling TLS verification")
     falcon_installer = (ROOT / "app/src/main/java/app/bedrockhost/mobile/server/FalconInstaller.kt").read_text()
     require("nativeLibraryDir" in falcon_installer and "libfalcon.so" in falcon_installer and "sha256sum --check" in workflow and "libfalcon.so" in workflow,
             "Falcon is checksum-verified in CI and packaged in Android nativeLibraryDir")
