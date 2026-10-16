@@ -12,8 +12,8 @@ android {
         applicationId = "app.bedrockhost.mobile"
         minSdk = 26
         targetSdk = 36
-        versionCode = 112
-        versionName = "1.0.12"
+        versionCode = 113
+        versionName = "1.0.13"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -36,7 +36,6 @@ android {
         resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" }
         jniLibs {
             keepDebugSymbols += "**/libphp.so"
-            keepDebugSymbols += "**/libfalcon.so"
             keepDebugSymbols += "**/libfalcon.so"
             // PHP and Falcon are executable ELF binaries packaged as .so files so Android
             // extracts them into nativeLibraryDir, avoiding no-exec app data directories.
