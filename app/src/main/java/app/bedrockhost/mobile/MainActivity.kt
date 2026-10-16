@@ -272,7 +272,7 @@ private fun RemoteAccessPage() {
     var launchNotice by remember { mutableStateOf("") }
     val address = tailscaleIp.trim()
     val octets = address.split(".")
-    val validIp = octets.size == 4 && octets.all { it.toIntOrNull() in 0..255 }
+    val validIp = octets.size == 4 && octets.all { part -> part.toIntOrNull()?.let { value -> value in 0..255 } == true }
     val serverAddress = "$address:19132"
 
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 10.dp)) {
