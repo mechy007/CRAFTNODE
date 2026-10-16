@@ -70,6 +70,20 @@ jobs:
           awk '{print $1}' "$RUNNER_TEMP/falcon.sha256" > app/src/main/assets/falcon.sha256
           test "$(wc -c < app/src/main/assets/falcon.sha256)" -eq 65
 
+      - name: Bundle checksum-verified Falcon Android ARM64 executable
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p app/src/main/jniLibs/arm64-v8a "$RUNNER_TEMP/falcon"
+          BASE="https://github.com/mechy007/CRAFTNODE/releases/download/falcon-android-arm64-experimental"
+          curl --fail --location --retry 3 "$BASE/FalconServer-android-arm64.sha256" -o "$RUNNER_TEMP/falcon/FalconServer.sha256"
+          curl --fail --location --retry 3 "$BASE/FalconServer-android-arm64" -o "$RUNNER_TEMP/falcon/FalconServer"
+          EXPECTED="$(awk '{print $1}' "$RUNNER_TEMP/falcon/FalconServer.sha256")"
+          echo "$EXPECTED  $RUNNER_TEMP/falcon/FalconServer" | sha256sum --check
+          readelf -h "$RUNNER_TEMP/falcon/FalconServer" | grep -q 'AArch64'
+          cp "$RUNNER_TEMP/falcon/FalconServer" app/src/main/jniLibs/arm64-v8a/libfalcon.so
+          chmod 755 app/src/main/jniLibs/arm64-v8a/libfalcon.so
+
       - name: Prepare pinned NovaMine checksum asset
         shell: bash
         run: |
@@ -90,10 +104,10 @@ jobs:
       - name: Rename versioned APK
         run: cp app/build/outputs/apk/debug/app-debug.apk CraftNode-v1.0.12-debug.apk
 
-      - name: Upload CraftNode v1.0.11 APK
+      - name: Upload CraftNode v1.0.12 APK
         uses: actions/upload-artifact@v4
         with:
           name: CraftNode-v1.0.12-debug-apk
-          path: CraftNode-v1.0.11-debug.apk
+          path: CraftNode-v1.0.12-debug.apk
           if-no-files-found: error
           retention-days: 30
