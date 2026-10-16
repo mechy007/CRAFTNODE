@@ -37,8 +37,9 @@ android {
         jniLibs {
             keepDebugSymbols += "**/libphp.so"
             keepDebugSymbols += "**/libfalcon.so"
-            // PHP is an executable ELF packaged as a .so so Android installs it
-            // into nativeLibraryDir, where execution is permitted.
+            keepDebugSymbols += "**/libfalcon.so"
+            // PHP and Falcon are executable ELF binaries packaged as .so files so Android
+            // extracts them into nativeLibraryDir, avoiding no-exec app data directories.
             useLegacyPackaging = true
         }
     }
