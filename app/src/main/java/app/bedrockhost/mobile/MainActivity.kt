@@ -106,7 +106,22 @@ private fun CraftNodeApp() {
     val context = LocalContext.current
     var page by remember { mutableStateOf(Page.Play) }
     var selectedProfile by remember { mutableStateOf("Survival World") }
-    var notice by remember { mutableStateOf("Choose a world to manage your server.") }
+    var notice by remember { mutableStateOf("Ready. Install an engine in Settings before starting.") }
+    val serverLogFile = remember { File(context.filesDir, "logs/server-console.log") }
+    var serverRunning by remember { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(serverLogFile) {
+        while (true) {
+            val relevant = runCatching {
+                serverLogFile.readLines().lastOrNull { line ->
+                    line.contains("process started") || line.contains("process launched") ||
+                        line.contains("exited with code") || line.contains("Start failed:")
+                }.orEmpty()
+            }.getOrDefault("")
+            serverRunning = (relevant.contains("process started") || relevant.contains("process launched")) &&
+                !relevant.contains("exited with code") && !relevant.contains("Start failed:")
+            kotlinx.coroutines.delay(1200)
+        }
+    }
     val settings = remember { context.getSharedPreferences("craftnode_settings", 0) }
     var selectedEngine by remember {
         mutableStateOf(settings.getString("selected_engine", "PocketMine-MP") ?: "PocketMine-MP")
@@ -150,7 +165,14 @@ private fun CraftNodeApp() {
                     selectedProfile = selectedProfile,
                     onSelectProfile = { selectedProfile = it; notice = "$it selected." },
                     notice = notice,
+                    serverRunning = serverRunning,
                     onStart = {
+                        if (serverRunning) {
+                            val stopIntent = Intent(context, ServerHostService::class.java)
+                                .setAction(ServerHostService.ACTION_STOP)
+                            ContextCompat.startForegroundService(context, stopIntent)
+                            notice = "Stop requested. Confirm shutdown in Console."
+                        } else {
                         val profileId = when (selectedProfile) {
                             "Friends SMP" -> "friends"
                             "Creative Test" -> "creative"
@@ -162,7 +184,8 @@ private fun CraftNodeApp() {
                             .putExtra(ServerHostService.EXTRA_ENGINE_ID, if (selectedEngine == "Falcon (experimental)") ServerHostService.ENGINE_FALCON else ServerHostService.ENGINE_NOVAMINE)
                         ContextCompat.startForegroundService(context, intent)
                         val engineLabel = if (selectedEngine == "Falcon (experimental)") "Falcon experimental" else "PocketMine-MP"
-                        notice = "Starting $engineLabel for Minecraft $selectedMinecraftVersion. Check Console for real startup logs."
+                        notice = "Start requested for $engineLabel. Confirm readiness in Console."
+                        }
                     },
                     onOpen = { page = it }
                 )
@@ -239,6 +262,7 @@ private fun PlayPage(
     selectedProfile: String,
     onSelectProfile: (String) -> Unit,
     notice: String,
+    serverRunning: Boolean,
     onStart: () -> Unit,
     onOpen: (Page) -> Unit
 ) {
@@ -249,12 +273,12 @@ private fun PlayPage(
     ) {
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatusPill("SERVER STATUS", "CHECK CONSOLE", Muted)
-                StatusPill("PLAYERS", "UNAVAILABLE", Muted)
+                StatusPill("SERVER STATUS", if (serverRunning) "PROCESS RUNNING" else "OFFLINE", if (serverRunning) Green else Muted)
+                StatusPill("PLAYERS", "NOT REPORTED", Muted)
             }
         }
         item {
-            HeroCard(selectedProfile, onSelectProfile, onStart, notice)
+            HeroCard(selectedProfile, onSelectProfile, onStart, notice, serverRunning)
         }
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -277,7 +301,8 @@ private fun HeroCard(
     selectedProfile: String,
     onSelectProfile: (String) -> Unit,
     onStart: () -> Unit,
-    notice: String
+    notice: String,
+    serverRunning: Boolean
 ) {
     Card(
         modifier = Modifier.fillMaxWidth().border(1.dp, Color(0xFF49366D), RoundedCornerShape(20.dp)),
@@ -343,11 +368,11 @@ private fun HeroCard(
                     onClick = onStart,
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Purple, contentColor = Color.White)
+                    colors = ButtonDefaults.buttonColors(containerColor = if (serverRunning) Color(0xFFB93855) else Purple, contentColor = Color.White)
                 ) {
                     Icon(Icons.Default.Gamepad, contentDescription = null)
                     Spacer(Modifier.width(9.dp))
-                    Text("START SERVER", fontWeight = FontWeight.Black, letterSpacing = 0.8.sp)
+                    Text(if (serverRunning) "STOP SERVER" else "START SERVER", fontWeight = FontWeight.Black, letterSpacing = 0.8.sp)
                 }
                 Spacer(Modifier.height(8.dp))
                 Text("ENGINE: SELECTED IN SETTINGS", color = Muted, fontSize = 9.sp, letterSpacing = 0.7.sp)
