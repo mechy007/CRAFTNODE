@@ -43,7 +43,7 @@ def main() -> int:
     packaging_ok = re.search(r'keepDebugSymbols\s*\+=\s*["\']\*\*/libphp\.so["\']', gradle) and re.search(r'useLegacyPackaging\s*=\s*true', gradle)
     require(bool(packaging_ok),
             "Android packaging extracts the bundled PHP executable into nativeLibraryDir")
-    require('versionCode = 107' in gradle and 'versionName = "1.0.7"' in gradle,
+    require('versionCode = 108' in gradle and 'versionName = "1.0.8"' in gradle,
             "version code and name are bumped")
     require('ndkVersion = "27.2.12479018"' in gradle and 'src/main/cpp/CMakeLists.txt' in gradle,
             "Android build pins NDK and enables CMake")
@@ -52,6 +52,11 @@ def main() -> int:
     require('System.loadLibrary("craftnode_native")' in bridge,
             "Kotlin loads the native diagnostics library")
     require("available system RAM" in native, "native diagnostics reports system memory availability")
+    require("FalconInstaller(codeCacheDir)" in service and "startFalconEngine(safeId)" in service,
+            "Falcon installer and experimental launch path are wired into the service")
+    falcon_installer = (ROOT / "app/src/main/java/app/bedrockhost/mobile/server/FalconInstaller.kt").read_text()
+    require("SHA-256 verification failed" in falcon_installer and "falcon-engine-previous" in falcon_installer,
+            "Falcon download is checksum-verified and installed separately with rollback support")
     require("File(applicationInfo.nativeLibraryDir, \"libphp.so\")" in service,
             "server prefers PHP packaged in Android nativeLibraryDir")
     require("PHPRC" in service and "LD_LIBRARY_PATH" in service,
@@ -67,10 +72,10 @@ def main() -> int:
             "console timestamps are rendered in readable clock format")
     require('selectedMinecraftVersion' in main_activity and 'Minecraft Bedrock ${version.first}' in main_activity,
             "Settings provides a Minecraft Bedrock version selector")
-    require('1.26.52' in main_activity and 'Android ARM64 build not available yet' in main_activity,
-            "1.26.52 selection clearly warns that its Android engine is not yet available")
-    require('selectedMinecraftVersion == "1.26.51"' in main_activity,
-            "engine installation is restricted to the verified 1.26.51 engine")
+    require('1.26.52' in main_activity and 'Falcon (experimental)' in main_activity,
+            "1.26.52 exposes the experimental Falcon Android engine with a warning")
+    require('selectedMinecraftVersion == "1.26.51"' in main_activity and 'selectedEngine == "Falcon (experimental)"' in main_activity,
+            "engine installation is gated by the matching engine and Minecraft version")
     require("RESTART" in dashboard and "App heap" in dashboard,
             "hosting dashboard includes restart and memory information")
     return 0
