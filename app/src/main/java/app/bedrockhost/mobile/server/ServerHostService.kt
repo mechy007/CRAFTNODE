@@ -28,16 +28,20 @@ class ServerHostService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_INSTALL -> {
-                startForeground(NOTIFICATION_ID, notification("Installing NovaMine Bedrock server engine"))
+            ACTION_INSTALL, ACTION_INSTALL_FALCON -> {
+                val installFalcon = intent.action == ACTION_INSTALL_FALCON
+                startForeground(NOTIFICATION_ID, notification(if (installFalcon) "Installing experimental Falcon engine" else "Installing NovaMine Bedrock server engine"))
                 thread(name = "CraftNode-Engine-Install") {
                     try {
-                        PocketMineInstaller(codeCacheDir, assets).install { message ->
-                            log(message)
-                            updateNotification(message)
+                        if (installFalcon) {
+                            FalconInstaller(codeCacheDir).install { message -> log(message); updateNotification(message) }
+                            log("Falcon experimental engine installed; physical-device compatibility is not yet verified.")
+                            updateNotification("Falcon experimental engine installed")
+                        } else {
+                            PocketMineInstaller(codeCacheDir, assets).install { message -> log(message); updateNotification(message) }
+                            log("NovaMine engine installation complete in Android code cache.")
+                            updateNotification("NovaMine Bedrock engine installed")
                         }
-                        log("Engine installation complete in Android code cache. Start it once to finish first-run setup.")
-                        updateNotification("NovaMine Bedrock engine installed")
                         stopForeground(STOP_FOREGROUND_REMOVE)
                         stopSelf(startId)
                     } catch (e: Exception) {
@@ -64,12 +68,12 @@ class ServerHostService : Service() {
             }
             ACTION_START -> {
                 startForeground(NOTIFICATION_ID, notification("Starting NovaMine Bedrock server"))
-                startEngine(intent.getStringExtra(EXTRA_PROFILE_ID) ?: "survival")
+                startEngine(intent.getStringExtra(EXTRA_PROFILE_ID) ?: "survival", intent.getStringExtra(EXTRA_ENGINE_ID) ?: ENGINE_NOVAMINE)
             }
             ACTION_STOP -> stopEngine()
             ACTION_RESTART -> {
                 startForeground(NOTIFICATION_ID, notification("Restarting PocketMine-MP"))
-                restartEngine(intent.getStringExtra(EXTRA_PROFILE_ID) ?: "survival")
+                restartEngine(intent.getStringExtra(EXTRA_PROFILE_ID) ?: "survival", intent.getStringExtra(EXTRA_ENGINE_ID) ?: ENGINE_NOVAMINE)
             }
             else -> stopSelf()
         }
@@ -77,7 +81,7 @@ class ServerHostService : Service() {
     }
 
     @Synchronized
-    private fun startEngine(profileId: String) {
+    private fun startEngine(profileId: String, engineId: String = ENGINE_NOVAMINE) {
         if (process?.isAlive == true) {
             log("Start ignored: a server process is already running.")
             return
@@ -85,6 +89,16 @@ class ServerHostService : Service() {
         val safeId = profileId.takeIf { it.matches(Regex("[A-Za-z0-9_-]{1,64}")) }
         if (safeId == null) {
             log("Start failed: invalid server profile ID.")
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+            return
+        }
+        if (engineId == ENGINE_FALCON) {
+            startFalconEngine(safeId)
+            return
+        }
+        if (engineId != ENGINE_NOVAMINE) {
+            log("Start failed: unknown engine selection.")
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             return
@@ -162,7 +176,41 @@ class ServerHostService : Service() {
         log("LAN compatibility: server-side Xbox authentication is OFF; use only on a trusted network because player identity is not verified.")
     }
 
-    private fun restartEngine(profileId: String) {
+    private fun startFalconEngine(profileId: String) {
+        val executable = File(codeCacheDir, "falcon-engine/FalconServer")
+        if (!executable.isFile || !executable.canExecute()) {
+            log("Falcon start failed: install the experimental Falcon engine from Settings first.")
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+            return
+        }
+        try {
+            val profileDir = File(filesDir, "worlds/$profileId").apply { mkdirs() }
+            val started = ProcessBuilder(executable.absolutePath).directory(profileDir).redirectErrorStream(true)
+                .apply {
+                    environment()["HOME"] = profileDir.absolutePath
+                    environment()["TMPDIR"] = File(cacheDir, "falcon-tmp").apply { mkdirs() }.absolutePath
+                }.start()
+            process = started
+            log("Experimental Falcon process launched for $profileId. Readiness and gameplay remain unverified.")
+            logThread = thread(name = "CraftNode-Falcon-Logs") {
+                started.inputStream.bufferedReader().useLines { lines -> lines.forEach { log(it) } }
+                val exit = runCatching { started.waitFor() }.getOrNull()
+                log("Falcon exited with code ${exit ?: "unknown"}.")
+                if (process === started) process = null
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+            }
+            updateNotification("Falcon experimental process launched")
+        } catch (e: Exception) {
+            log("Falcon start failed: ${e.javaClass.simpleName}: ${e.message ?: "unknown error"}")
+            process = null
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+        }
+    }
+
+    private fun restartEngine(profileId: String, engineId: String = ENGINE_NOVAMINE) {
         thread(name = "CraftNode-Server-Restart") {
             val running = process
             if (running != null && running.isAlive) {
@@ -184,7 +232,7 @@ class ServerHostService : Service() {
                 }
             }
             if (process === running) process = null
-            startEngine(profileId)
+            startEngine(profileId, engineId)
         }
     }
 
@@ -248,12 +296,16 @@ class ServerHostService : Service() {
 
     companion object {
         const val ACTION_INSTALL = "app.bedrockhost.mobile.server.INSTALL"
+        const val ACTION_INSTALL_FALCON = "app.bedrockhost.mobile.server.INSTALL_FALCON"
         const val ACTION_START = "app.bedrockhost.mobile.server.START"
         const val ACTION_COMMAND = "app.bedrockhost.mobile.server.COMMAND"
         const val ACTION_STOP = "app.bedrockhost.mobile.server.STOP"
         const val ACTION_RESTART = "app.bedrockhost.mobile.server.RESTART"
         const val EXTRA_PROFILE_ID = "profile_id"
+        const val EXTRA_ENGINE_ID = "engine_id"
         const val EXTRA_COMMAND = "command"
+        const val ENGINE_NOVAMINE = "novamine"
+        const val ENGINE_FALCON = "falcon"
         private const val CHANNEL_ID = "craftnode_server"
         private const val NOTIFICATION_ID = 401
     }
