@@ -12,12 +12,12 @@ import java.security.MessageDigest
  * The binary is kept separately from NovaMine so switching engines never overwrites worlds
  * or the existing NovaMine installation.
  */
-class FalconInstaller(private val codeCacheDir: File) {
+class FalconInstaller(private val filesDir: File) {
     data class InstallResult(val executable: File, val version: String)
 
     fun install(onProgress: (String) -> Unit = {}): InstallResult {
-        val root = File(codeCacheDir, "falcon-engine")
-        val staging = File(codeCacheDir, "falcon-engine-staging")
+        val root = File(filesDir, "falcon-engine")
+        val staging = File(filesDir, "falcon-engine-staging")
         if (staging.exists()) check(staging.deleteRecursively()) { "Could not clear Falcon staging directory." }
         check(staging.mkdirs()) { "Could not create Falcon staging directory." }
         try {
@@ -36,9 +36,9 @@ class FalconInstaller(private val codeCacheDir: File) {
             // Keep the existing install until the new binary has downloaded and verified.
             val stagedBinary = File(staging, "FalconServer")
             check(binary.renameTo(stagedBinary)) { "Could not prepare Falcon executable." }
-            Os.chmod(stagedBinary.absolutePath, 493)
+            Os.chmod(stagedBinary.absolutePath, 493) // 0755; keep the verified ELF executable after moving it to app-private files storage.
             check(stagedBinary.canExecute()) { "Android could not mark Falcon executable." }
-            val previous = File(codeCacheDir, "falcon-engine-previous")
+            val previous = File(filesDir, "falcon-engine-previous")
             if (previous.exists()) check(previous.deleteRecursively()) { "Could not clear previous Falcon backup." }
             val hadPrevious = root.exists()
             if (hadPrevious) check(root.renameTo(previous)) { "Could not preserve the existing Falcon engine." }
@@ -47,7 +47,7 @@ class FalconInstaller(private val codeCacheDir: File) {
                 val installed = File(root, "FalconServer")
                 check(installed.isFile && installed.canExecute()) { "Falcon post-install validation failed." }
                 File(root, "INSTALL_INFO.txt").writeText(
-                    "Falcon Android ARM64 experimental build\\nMinecraft Bedrock 1.26.52 / protocol 2193\\n" +
+                    "Falcon Android ARM64 experimental build\\nMinecraft Bedrock 1.26.52 / protocol 2193\\nInstall location: app-private files storage (not code_cache).\\n" +
                         "Source: Falcon-MC/Falcon v1.0.3\\nSHA-256 verified at install time.\\n" +
                         "Not yet validated on a physical Android device; keep a backup of worlds.\\n"
                 )
