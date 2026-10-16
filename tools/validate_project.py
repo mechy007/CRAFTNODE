@@ -43,7 +43,7 @@ def main() -> int:
     packaging_ok = re.search(r'keepDebugSymbols\s*\+=\s*["\']\*\*/libphp\.so["\']', gradle) and re.search(r'useLegacyPackaging\s*=\s*true', gradle)
     require(bool(packaging_ok),
             "Android packaging extracts the bundled PHP executable into nativeLibraryDir")
-    require('versionCode = 108' in gradle and 'versionName = "1.0.8"' in gradle,
+    require('versionCode = 109' in gradle and 'versionName = "1.0.9"' in gradle,
             "version code and name are bumped")
     require('ndkVersion = "27.2.12479018"' in gradle and 'src/main/cpp/CMakeLists.txt' in gradle,
             "Android build pins NDK and enables CMake")
@@ -72,6 +72,10 @@ def main() -> int:
             "console timestamps are rendered in readable clock format")
     require('selectedMinecraftVersion' in main_activity and 'Minecraft Bedrock ${version.first}' in main_activity,
             "Settings provides a Minecraft Bedrock version selector")
+    require('getSharedPreferences("craftnode_settings", 0)' in main_activity
+            and 'putString("selected_engine", it)' in main_activity
+            and 'putString("selected_minecraft_version", it)' in main_activity,
+            "selected engine and Minecraft version persist across activity/process recreation")
     require('1.26.52' in main_activity and 'Falcon (experimental)' in main_activity,
             "1.26.52 exposes the experimental Falcon Android engine with a warning")
     require('selectedMinecraftVersion == "1.26.51"' in main_activity and 'selectedEngine == "Falcon (experimental)"' in main_activity,
