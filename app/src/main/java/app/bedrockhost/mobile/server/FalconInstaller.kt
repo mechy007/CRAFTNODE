@@ -107,6 +107,6 @@ class FalconInstaller(private val codeCacheDir: File) {
     }
 
     companion object {
-        private const val MAX_BINARY_BYTES = 250L * 1024L * 1024L
+        private const val MAX_BINARY_BYTES = 512L * 1024L * 1024L
     }
 }
