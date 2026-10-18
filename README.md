@@ -35,8 +35,6 @@ See [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md).
 
 ## Remote Bedrock access
 
-The existing Remote screen prepares an address for a private Tailscale network and requires Tailscale on both phones. This does not meet the desired app-free experience for friends.
-
-The experimental FRP UDP tunnel foundation is documented in [docs/FRP_UDP_REMOTE_TUNNEL.md](docs/FRP_UDP_REMOTE_TUNNEL.md). Current code only generates and validates client configuration; it does not yet bundle or launch an Android-compatible FRP client, provision a public relay, or prove remote Bedrock connectivity. Do not put relay credentials in the APK or source control.
+The Remote screen now includes setup controls for an FRP UDP tunnel, and CI bundles a checksum-pinned Android ARM64 FRP client. You must supply a reachable public FRP relay with UDP forwarding and valid credentials. The relay is not provisioned by CraftNode, and cross-network Bedrock joining has not yet been verified. Do not put shared production credentials in source control or claim remote multiplayer is ready until physical testing succeeds. See [docs/FRP_UDP_REMOTE_TUNNEL.md](docs/FRP_UDP_REMOTE_TUNNEL.md) for status and requirements.
 
 The CraftNode tab can also connect to a compatible Pterodactyl Client API panel over HTTPS. Remote panel management does not provide free cloud RAM or create a hosted server.

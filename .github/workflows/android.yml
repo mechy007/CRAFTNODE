@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build:
-    name: Test and build CraftNode v1.0.15 APK
+    name: Test and build CraftNode v1.0.16 APK
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -40,6 +40,22 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Bundle verified Android ARM64 FRP client
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p app/src/main/jniLibs/arm64-v8a "$RUNNER_TEMP/frp-runtime"
+          FRP_URL="https://github.com/fatedier/frp/releases/download/v0.71.1/frp_0.71.1_android_arm64.tar.gz"
+          curl --fail --location --retry 3 "$FRP_URL" -o "$RUNNER_TEMP/frp-android-arm64.tar.gz"
+          echo "9dce8c10e66bdf1a0cff19bf2cd1a3f4f7389fccee8ca0cda57a7a7c0d87af3a  $RUNNER_TEMP/frp-android-arm64.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/frp-android-arm64.tar.gz" -C "$RUNNER_TEMP/frp-runtime"
+          FRPC_BIN="$(find "$RUNNER_TEMP/frp-runtime" -type f -name frpc | head -n 1)"
+          test -n "$FRPC_BIN"
+          readelf -h "$FRPC_BIN" | grep -q 'AArch64'
+          cp "$FRPC_BIN" app/src/main/jniLibs/arm64-v8a/libfrpc.so
+          chmod 755 app/src/main/jniLibs/arm64-v8a/libfrpc.so
+          sha256sum app/src/main/jniLibs/arm64-v8a/libfrpc.so
+
       - name: Bundle verified Android ARM64 PHP executable
         shell: bash
         run: |
@@ -53,7 +69,6 @@ jobs:
           readelf -h "$PHP_BIN" | grep -q 'AArch64'
           cp "$PHP_BIN" app/src/main/jniLibs/arm64-v8a/libphp.so
           chmod 755 app/src/main/jniLibs/arm64-v8a/libphp.so
-
 
       - name: Bundle verified Falcon Android ARM64 executable
         shell: bash
@@ -99,12 +114,12 @@ jobs:
         run: gradle --no-daemon testDebugUnitTest assembleDebug
 
       - name: Rename versioned APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk CraftNode-v1.0.15-debug.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk CraftNode-v1.0.16-debug.apk
 
-      - name: Upload CraftNode v1.0.15 APK
+      - name: Upload CraftNode v1.0.16 APK
         uses: actions/upload-artifact@v4
         with:
-          name: CraftNode-v1.0.15-debug-apk
-          path: CraftNode-v1.0.15-debug.apk
+          name: CraftNode-v1.0.16-debug-apk
+          path: CraftNode-v1.0.16-debug.apk
           if-no-files-found: error
           retention-days: 30
