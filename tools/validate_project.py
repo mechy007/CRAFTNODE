@@ -43,7 +43,7 @@ def main() -> int:
     packaging_ok = re.search(r'keepDebugSymbols\s*\+=\s*["\']\*\*/libphp\.so["\']', gradle) and re.search(r'useLegacyPackaging\s*=\s*true', gradle)
     require(bool(packaging_ok),
             "Android packaging extracts the bundled PHP executable into nativeLibraryDir")
-    require('versionCode = 115' in gradle and 'versionName = "1.0.15"' in gradle,
+    require('versionCode = 116' in gradle and 'versionName = "1.0.16"' in gradle,
             "version code and name are bumped")
     require('ndkVersion = "27.2.12479018"' in gradle and 'src/main/cpp/CMakeLists.txt' in gradle,
             "Android build pins NDK and enables CMake")
@@ -88,9 +88,21 @@ def main() -> int:
             "engine installation is gated by the matching engine and Minecraft version")
     require("RESTART" in dashboard and "App heap" in dashboard,
             "hosting dashboard includes restart and memory information")
-    require('private fun RemoteAccessPage()' in main_activity and 'Tailscale' in main_activity
-            and 'COPY SERVER ADDRESS' in main_activity and '19132' in main_activity,
-            "remote access screen documents private Tailscale routing and prepares a Bedrock address")
+    require('private fun RemoteAccessPage()' in main_activity and 'START REMOTE TUNNEL' in main_activity
+            and 'FrpTunnelService.ACTION_START' in main_activity and '19132' in main_activity,
+            "remote access screen can configure and start the FRP UDP tunnel")
+    tunnel_service = (ROOT / "app/src/main/java/app/bedrockhost/mobile/multiplayer/FrpTunnelService.kt").read_text()
+    tunnel_controller = (ROOT / "app/src/main/java/app/bedrockhost/mobile/multiplayer/FrpUdpTunnelController.kt").read_text()
+    tunnel_config = (ROOT / "app/src/main/java/app/bedrockhost/mobile/multiplayer/FrpUdpTunnelConfig.kt").read_text()
+    require("libfrpc.so" in tunnel_controller and "FrpUdpTunnelConfig" in tunnel_controller
+            and "forgetLocalConfig" in tunnel_service,
+            "FRP client process has a private config lifecycle and cleanup")
+    require("frp_0.71.1_android_arm64.tar.gz" in workflow
+            and "9dce8c10e66bdf1a0cff19bf2cd1a3f4f7389fccee8ca0cda57a7a7c0d87af3a" in workflow
+            and "libfrpc.so" in workflow and "readelf -h" in workflow,
+            "CI checksum-verifies and architecture-checks the pinned Android ARM64 FRP client")
+    require("auth.token" in tunnel_config and "replace(config.authToken, \"[REDACTED]\")" in tunnel_controller,
+            "FRP credentials are redacted from client process logs")
     return 0
 
 
