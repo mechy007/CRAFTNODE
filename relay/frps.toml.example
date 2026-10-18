@@ -1,0 +1,20 @@
+# CraftNode public FRP relay example.
+# Copy to /etc/frp/frps.toml and replace the placeholder token with a unique,
+# long random secret. Never commit a real token.
+bindAddr = "0.0.0.0"
+bindPort = 7000
+
+auth.method = "token"
+auth.token = "REPLACE_WITH_A_LONG_RANDOM_SECRET"
+
+# Require encrypted FRP control connections.
+transport.tls.force = true
+
+# Permit only the public UDP port intended for Bedrock.
+# If you allocate a different public port, update this list and the
+# CraftNode Remote Access screen to match.
+allowPorts = [
+  { single = 19132 }
+]
+
+# Keep the admin dashboard disabled unless you have a specific need for it.
