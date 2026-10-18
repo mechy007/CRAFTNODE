@@ -1,9 +1,10 @@
 package app.bedrockhost.mobile.multiplayer
 
 /**
- * Validated configuration for a CraftNode-managed FRP UDP proxy.
+ * Validated FRP UDP proxy configuration.
  *
- * This builds client configuration only. It does not launch a tunnel or prove connectivity.
+ * This model only creates client configuration. It does not launch a tunnel,
+ * provision a relay, or prove that Minecraft can connect.
  */
 data class FrpUdpTunnelConfig(
     val relayHost: String,
@@ -14,29 +15,31 @@ data class FrpUdpTunnelConfig(
     val proxyName: String = "craftnode-bedrock"
 ) {
     init {
-        require(isValidHost(relayHost)) { "Relay host must be a hostname or IPv4 address, without a scheme or path." }
-        require(relayControlPort in VALID_PORTS) { "Relay control port must be between 1 and 65535." }
-        require(publicUdpPort in VALID_PORTS) { "Public UDP port must be between 1 and 65535." }
-        require(localUdpPort in VALID_PORTS) { "Local UDP port must be between 1 and 65535." }
-        require(authToken.isNotBlank()) { "Relay authentication token is required." }
-        require(proxyName.matches(Regex("[A-Za-z0-9_-]{1,48}"))) { "Proxy name contains unsupported characters." }
+        require(isValidHost(relayHost)) { "Enter a hostname or IPv4 address, not a URL or path." }
+        require(relayControlPort in VALID_PORTS) { "Control port must be 1–65535." }
+        require(publicUdpPort in VALID_PORTS) { "Public UDP port must be 1–65535." }
+        require(localUdpPort in VALID_PORTS) { "Local UDP port must be 1–65535." }
+        require(authToken.matches(Regex("[A-Za-z0-9_-]{16,256}"))) {
+            "Relay token must contain 16–256 letters, digits, underscores or hyphens."
+        }
+        require(proxyName.matches(Regex("[A-Za-z0-9_-]{1,48}"))) { "Invalid proxy name." }
     }
 
-    /** The result contains a secret token. Never log or commit it. */
+    /** Contains the relay token: never log, export, or commit this string. */
     fun toToml(): String = buildString {
-        appendLine("serverAddr = " + tomlString(relayHost))
-        appendLine("serverPort = $relayControlPort")
+        appendLine("serverAddr = " + quoted(relayHost))
+        appendLine("serverPort = " + relayControlPort)
         appendLine()
-        appendLine("auth.method = \\"token\\"")
-        appendLine("auth.token = " + tomlString(authToken))
+        appendLine("auth.method = " + quoted("token"))
+        appendLine("auth.token = " + quoted(authToken))
         appendLine("transport.tls.enable = true")
         appendLine()
         appendLine("[[proxies]]")
-        appendLine("name = " + tomlString(proxyName))
-        appendLine("type = \\"udp\\"")
-        appendLine("localIP = \\"127.0.0.1\\"")
-        appendLine("localPort = $localUdpPort")
-        appendLine("remotePort = $publicUdpPort")
+        appendLine("name = " + quoted(proxyName))
+        appendLine("type = " + quoted("udp"))
+        appendLine("localIP = " + quoted("127.0.0.1"))
+        appendLine("localPort = " + localUdpPort)
+        appendLine("remotePort = " + publicUdpPort)
     }
 
     companion object {
@@ -45,28 +48,19 @@ data class FrpUdpTunnelConfig(
         private val HOST_LABEL = Regex("[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?")
 
         private fun isValidHost(host: String): Boolean {
-            if (host.isBlank() || host.length > 253 || host.contains("://") ||
-                host.any { it == '/' || it == '\\\\' || it.isWhitespace() }
-            ) return false
-            if (host.matches(Regex("[0-9]{1,3}(\\\\.[0-9]{1,3}){3}"))) {
-                return host.split('.').all { it.toIntOrNull() in 0..255 }
-            }
-            return host.split('.').all { HOST_LABEL.matches(it) }
+            if (host.isBlank() || host.length > 253 || host.contains("://")) return false
+            if (host.any { !it.isLetterOrDigit() && it != '.' && it != '-' }) return false
+            val labels = host.split('.')
+            if (labels.any { it.isEmpty() || !HOST_LABEL.matches(it) }) return false
+            val looksLikeIpv4 = labels.size == 4 && labels.all { label -> label.all { it.isDigit() } }
+            return !looksLikeIpv4 || labels.all { it.toIntOrNull() in 0..255 }
         }
 
-        private fun tomlString(value: String): String {
-            val escaped = value
-                .replace("\\\\", "\\\\\\\\")
-                .replace("\\"", "\\\\\\"")
-                .replace("\\n", "\\\\n")
-                .replace("\\r", "\\\\r")
-                .replace("\\t", "\\\\t")
-            return "\\"" + escaped + "\\""
-        }
+        private fun quoted(value: String): String = 34.toChar().toString() + value + 34.toChar()
     }
 }
 
-/** UI states for a future tunnel controller; READY requires actual health checks. */
+/** Future tunnel-controller states. READY must require actual Bedrock reachability. */
 enum class RemoteTunnelState {
     NOT_CONFIGURED,
     CONFIGURED,
