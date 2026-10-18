@@ -43,7 +43,7 @@ def main() -> int:
     packaging_ok = re.search(r'keepDebugSymbols\s*\+=\s*["\']\*\*/libphp\.so["\']', gradle) and re.search(r'useLegacyPackaging\s*=\s*true', gradle)
     require(bool(packaging_ok),
             "Android packaging extracts the bundled PHP executable into nativeLibraryDir")
-    require('versionCode = 116' in gradle and 'versionName = "1.0.16"' in gradle,
+    require('versionCode = 117' in gradle and 'versionName = "1.0.17"' in gradle,
             "version code and name are bumped")
     require('ndkVersion = "27.2.12479018"' in gradle and 'src/main/cpp/CMakeLists.txt' in gradle,
             "Android build pins NDK and enables CMake")
@@ -89,8 +89,9 @@ def main() -> int:
     require("RESTART" in dashboard and "App heap" in dashboard,
             "hosting dashboard includes restart and memory information")
     require('private fun RemoteAccessPage()' in main_activity and 'START REMOTE TUNNEL' in main_activity
-            and 'FrpTunnelService.ACTION_START' in main_activity and '19132' in main_activity,
-            "remote access screen can configure and start the FRP UDP tunnel")
+            and 'FrpTunnelService.ACTION_START' in main_activity and '19132' in main_activity
+            and 'COPY JOIN ADDRESS' in main_activity,
+            "remote access screen can configure the FRP UDP tunnel and copy its join endpoint")
     tunnel_service = (ROOT / "app/src/main/java/app/bedrockhost/mobile/multiplayer/FrpTunnelService.kt").read_text()
     tunnel_controller = (ROOT / "app/src/main/java/app/bedrockhost/mobile/multiplayer/FrpUdpTunnelController.kt").read_text()
     tunnel_config = (ROOT / "app/src/main/java/app/bedrockhost/mobile/multiplayer/FrpUdpTunnelConfig.kt").read_text()
