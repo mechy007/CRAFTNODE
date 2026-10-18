@@ -15,7 +15,7 @@ CraftNode is an Android-first Minecraft Bedrock community-server manager, design
 
 ## Current status
 
-**Early scaffold — local hosting is still under validation. Remote panel management is an optional feature and requires a compatible Client API key.** The initial Android UI is a foundation only. The server runtime must pass a feasibility test before server hosting is advertised as working.
+Remote tunneling is in development and must be validated against real Android devices and Bedrock clients. Do not advertise remote joining as working until a different-network Bedrock connection has been verified.
 
 ## Build
 
@@ -33,12 +33,10 @@ See [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md).
 - Do not expose server addresses or credentials unnecessarily.
 - Android background execution and mobile-network restrictions mean 24/7 uptime and remote access cannot be guaranteed.
 
+## Remote Bedrock access
 
-## Remote CraftNode panel
+The existing Remote screen prepares an address for a private Tailscale network and requires Tailscale on both phones. This does not meet the desired app-free experience for friends.
 
-The CraftNode tab can connect to a compatible Pterodactyl Client API panel over HTTPS to list servers, view resource status, send power requests, and submit console commands. A Client API key is required; the app does not persist that key. Provider-side API access may be disabled. Remote panel management does not provide free cloud RAM or create a hosted server.
+The experimental FRP UDP tunnel foundation is documented in [docs/FRP_UDP_REMOTE_TUNNEL.md](docs/FRP_UDP_REMOTE_TUNNEL.md). Current code only generates and validates client configuration; it does not yet bundle or launch an Android-compatible FRP client, provision a public relay, or prove remote Bedrock connectivity. Do not put relay credentials in the APK or source control.
 
-
-## Remote Bedrock access (v1.0.15)
-
-CraftNode's Remote screen prepares a Bedrock server address for a private Tailscale network. Install Tailscale separately on both Android phones and sign into the same private network. Enter the host phone's Tailscale IPv4 address, then use the prepared address in Minecraft Bedrock's Servers > Add Server screen (default port 19132). CraftNode does not install/manage Tailscale or verify reachability; confirm the server's actual port and readiness in Console. The current server compatibility configuration disables Xbox identity verification, so only share access with trusted players.
+The CraftNode tab can also connect to a compatible Pterodactyl Client API panel over HTTPS. Remote panel management does not provide free cloud RAM or create a hosted server.
