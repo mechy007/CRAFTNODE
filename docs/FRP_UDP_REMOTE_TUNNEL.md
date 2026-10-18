@@ -21,6 +21,7 @@ Let a friend join a CraftNode-hosted Bedrock-compatible server from another netw
 - [x] CI downloads the official FRP Android ARM64 v0.71.1 archive, checks its pinned SHA-256 digest, verifies AArch64, and packages the client as `libfrpc.so`.
 - [x] Remote Access UI fields for relay host, control port, token, public UDP port, and local UDP port.
 - [ ] Persist credentials safely using Android Keystore; the UI currently asks for the token each session.
+- [x] Delete the local token-bearing FRP config when the client exits or the tunnel is stopped (best-effort; Android process termination can still interrupt cleanup).
 - [ ] Provision or identify a genuinely free public relay with stable hostname, UDP forwarding, and suitable terms. CraftNode does not provision a relay.
 - [ ] Show the assigned public endpoint and a reliable, user-visible tunnel state.
 - [ ] Verify an actual Bedrock join from a second phone on a different network.
