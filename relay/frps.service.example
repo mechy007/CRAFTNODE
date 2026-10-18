@@ -1,0 +1,21 @@
+[Unit]
+Description=CraftNode FRP relay server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=frp
+Group=frp
+WorkingDirectory=/etc/frp
+ExecStart=/usr/local/bin/frps -c /etc/frp/frps.toml
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/frp
+
+[Install]
+WantedBy=multi-user.target
