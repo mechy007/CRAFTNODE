@@ -393,7 +393,7 @@ private fun RemoteAccessPage() {
                 clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(endpoint))
                 notice = "Copied configured endpoint. The relay and Bedrock join are not verified yet."
             },
-            enabled = relayHost.isNotBlank() && parsedPublicPort in 1..65535,
+            enabled = relayHost.isNotBlank() && parsedPublicPort != null && parsedPublicPort in 1..65535,
             modifier = Modifier.fillMaxWidth()
         ) { Text("COPY JOIN ADDRESS") }
         Spacer(Modifier.height(10.dp))
