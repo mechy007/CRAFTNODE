@@ -18,8 +18,9 @@ Let a friend join a CraftNode-hosted Bedrock-compatible server from another netw
 - [x] FRP process controller with private config storage, token redaction in process logs, and stop/cleanup.
 - [x] Dedicated foreground service for tunnel lifecycle; it is not exported to other apps.
 - [x] Android manifest registration and executable native-library packaging rule.
-- [ ] Bundle a compatible official FRP Android ARM64 executable as `libfrpc.so`, with pinned version and verified checksum.
-- [ ] Wire a UI screen to the service and securely store/manage relay credentials.
+- [x] Bundle official FRP Android ARM64 executable as `libfrpc.so` in CI, pinned to v0.71.1 and verified against the release SHA-256 digest.
+- [x] Add Remote Access UI controls to configure and start/stop the tunnel service.
+- [ ] Add durable credential management using Android Keystore; current UI asks for the token each session and does not persist it in preferences.
 - [ ] Provision a public relay with stable hostname, UDP port allocation, authentication, rate limits and monitoring.
 - [ ] Show the assigned public endpoint and meaningful tunnel state.
 - [ ] Verify an actual Bedrock UDP handshake from a second phone on a different network.
