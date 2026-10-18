@@ -12,8 +12,8 @@ android {
         applicationId = "app.bedrockhost.mobile"
         minSdk = 26
         targetSdk = 36
-        versionCode = 116
-        versionName = "1.0.16"
+        versionCode = 117
+        versionName = "1.0.17"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -64,5 +64,5 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    debugImplementation("androidx.test:ui-test-manifest")
 }
