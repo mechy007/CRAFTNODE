@@ -24,15 +24,15 @@ data class FrpUdpTunnelConfig(
 
     /** The result contains a secret token. Never log or commit it. */
     fun toToml(): String = buildString {
-        appendLine("serverAddr = \${tomlString(relayHost)}")
+        appendLine("serverAddr = " + tomlString(relayHost))
         appendLine("serverPort = $relayControlPort")
         appendLine()
         appendLine("auth.method = \\"token\\"")
-        appendLine("auth.token = \${tomlString(authToken)}")
+        appendLine("auth.token = " + tomlString(authToken))
         appendLine("transport.tls.enable = true")
         appendLine()
         appendLine("[[proxies]]")
-        appendLine("name = \${tomlString(proxyName)}")
+        appendLine("name = " + tomlString(proxyName))
         appendLine("type = \\"udp\\"")
         appendLine("localIP = \\"127.0.0.1\\"")
         appendLine("localPort = $localUdpPort")
@@ -54,12 +54,15 @@ data class FrpUdpTunnelConfig(
             return host.split('.').all { HOST_LABEL.matches(it) }
         }
 
-        private fun tomlString(value: String): String = "\\"" + value
-            .replace("\\\\\\\\", "\\\\\\\\\\\\\\\\")
-            .replace("\\"", "\\\\\\\\"")
-            .replace("\\n", "\\\\n")
-            .replace("\\r", "\\\\r")
-            .replace("\\t", "\\\\t") + "\\""
+        private fun tomlString(value: String): String {
+            val escaped = value
+                .replace("\\\\", "\\\\\\\\")
+                .replace("\\"", "\\\\\\"")
+                .replace("\\n", "\\\\n")
+                .replace("\\r", "\\\\r")
+                .replace("\\t", "\\\\t")
+            return "\\"" + escaped + "\\""
+        }
     }
 }
 
