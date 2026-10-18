@@ -9,7 +9,7 @@ class FrpUdpTunnelConfigTest {
     private fun config(
         host: String = "relay.example.net",
         controlPort: Int = 7000,
-        token: String = "test-secret",
+        token: String = "abcdefghijklmnop",
         publicPort: Int = 19132,
         localPort: Int = 19132
     ) = FrpUdpTunnelConfig(host, controlPort, token, publicPort, localPort)
@@ -17,9 +17,10 @@ class FrpUdpTunnelConfigTest {
     @Test
     fun emitsUdpProxyForBedrockPort() {
         val toml = config().toToml()
-        assertTrue(toml.contains("serverAddr = \\"relay.example.net\\""))
-        assertTrue(toml.contains("auth.token = \\"test-secret\\""))
-        assertTrue(toml.contains("type = \\"udp\\""))
+        val quote = 34.toChar()
+        assertTrue(toml.contains("serverAddr = " + quote + "relay.example.net" + quote))
+        assertTrue(toml.contains("auth.token = " + quote + "abcdefghijklmnop" + quote))
+        assertTrue(toml.contains("type = " + quote + "udp" + quote))
         assertTrue(toml.contains("localPort = 19132"))
         assertTrue(toml.contains("remotePort = 19132"))
         assertTrue(toml.contains("transport.tls.enable = true"))
