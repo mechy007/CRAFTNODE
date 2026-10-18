@@ -12,8 +12,8 @@ android {
         applicationId = "app.bedrockhost.mobile"
         minSdk = 26
         targetSdk = 36
-        versionCode = 115
-        versionName = "1.0.15"
+        versionCode = 116
+        versionName = "1.0.16"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -37,8 +37,9 @@ android {
         jniLibs {
             keepDebugSymbols += "**/libphp.so"
             keepDebugSymbols += "**/libfalcon.so"
-            // PHP and Falcon are executable ELF binaries packaged as .so files so Android
-            // extracts them into nativeLibraryDir, avoiding no-exec app data directories.
+            keepDebugSymbols += "**/libfrpc.so"
+            // Executable ELF payloads are packaged as .so files so Android extracts them
+            // into nativeLibraryDir rather than no-exec app-private storage.
             useLegacyPackaging = true
         }
     }
