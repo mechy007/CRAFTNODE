@@ -267,79 +267,135 @@ private fun CraftNodeApp() {
 @Composable
 private fun RemoteAccessPage() {
     val context = LocalContext.current
-    var tailscaleIp by remember { mutableStateOf("") }
-    var copied by remember { mutableStateOf(false) }
-    var launchNotice by remember { mutableStateOf("") }
-    val address = tailscaleIp.trim()
-    val octets = address.split(".")
-    val validIp = octets.size == 4 && octets.all { part -> part.toIntOrNull()?.let { value -> value in 0..255 } == true }
-    val serverAddress = "$address:19132"
+    var relayHost by remember { mutableStateOf("") }
+    var controlPort by remember { mutableStateOf("7000") }
+    var authToken by remember { mutableStateOf("") }
+    var publicPort by remember { mutableStateOf("19132") }
+    var localPort by remember { mutableStateOf("19132") }
+    var notice by remember { mutableStateOf("A public FRP relay is required. CraftNode does not host that relay for you.") }
 
-    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 10.dp)) {
+    Column(
+        Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 10.dp)
+            .verticalScroll(rememberScrollState())
+    ) {
         Text("Remote access", color = TextMain, fontSize = 28.sp, fontWeight = FontWeight.Black)
         Spacer(Modifier.height(5.dp))
-        Text("Connect a second Bedrock phone across different networks.", color = Muted, fontSize = 13.sp)
+        Text("Let friends join through Minecraft Bedrock without installing a VPN.", color = Muted, fontSize = 13.sp)
         Spacer(Modifier.height(16.dp))
-        Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth().border(1.dp, Line, RoundedCornerShape(16.dp))) {
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Panel),
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth().border(1.dp, Line, RoundedCornerShape(16.dp))
+        ) {
             Column(Modifier.padding(16.dp)) {
-                Text("PRIVATE CONNECTION", color = Green, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.2.sp)
+                Text("PUBLIC UDP TUNNEL", color = Green, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.2.sp)
                 Spacer(Modifier.height(8.dp))
-                Text("Use Tailscale on both Android phones", color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("Relay details required", color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(6.dp))
-                Text("1. Install Tailscale on the host and joining phones.\n2. Sign both into the same private Tailscale network.\n3. Start CraftNode and confirm the server is ready in Console.\n4. Enter the host phone's Tailscale IPv4 address below.\n5. Use the new OPEN IN MINECRAFT button to hand the server address to Minecraft.", color = Muted, fontSize = 12.sp, lineHeight = 18.sp)
+                Text(
+                    "You need an FRP server reachable from the internet with UDP forwarding enabled, a token, and an allocated public UDP port. The relay is separate from CraftNode and may cost money. Never share the relay token with friends.",
+                    color = Muted, fontSize = 12.sp, lineHeight = 18.sp
+                )
             }
         }
         Spacer(Modifier.height(14.dp))
-        Text("Host phone Tailscale IPv4", color = TextMain, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(6.dp))
+        Text("Relay hostname or IPv4", color = TextMain, fontSize = 13.sp, fontWeight = FontWeight.Bold)
         OutlinedTextField(
-            value = tailscaleIp,
-            onValueChange = { tailscaleIp = it.filter { ch -> ch.isDigit() || ch == '.' }.take(15); copied = false; launchNotice = "" },
+            value = relayHost,
+            onValueChange = { relayHost = it.trim().take(253); notice = "" },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
-            placeholder = { Text("100.x.y.z") },
-            supportingText = { Text("Find this in the Tailscale app on the host phone.") }
+            placeholder = { Text("relay.example.net") }
         )
-        Spacer(Modifier.height(6.dp))
-        Text("Server address", color = Muted, fontSize = 11.sp)
-        Text(if (validIp) serverAddress else "Enter a valid IPv4 address to prepare the address.", color = if (validIp) Green else Muted, fontSize = 15.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
+        Text("FRP control port", color = TextMain, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        OutlinedTextField(
+            value = controlPort,
+            onValueChange = { controlPort = it.filter(Char::isDigit).take(5) },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            placeholder = { Text("7000") }
+        )
+        Spacer(Modifier.height(8.dp))
+        Text("Relay token (private)", color = TextMain, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        OutlinedTextField(
+            value = authToken,
+            onValueChange = { authToken = it.filter { ch -> ch.isLetterOrDigit() || ch == '_' || ch == '-' }.take(256) },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+            placeholder = { Text("Paste relay token") }
+        )
+        Spacer(Modifier.height(8.dp))
+        Text("Public UDP port assigned by relay", color = TextMain, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        OutlinedTextField(
+            value = publicPort,
+            onValueChange = { publicPort = it.filter(Char::isDigit).take(5) },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            placeholder = { Text("19132") }
+        )
+        Spacer(Modifier.height(8.dp))
+        Text("Local Bedrock UDP port", color = TextMain, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        OutlinedTextField(
+            value = localPort,
+            onValueChange = { localPort = it.filter(Char::isDigit).take(5) },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            placeholder = { Text("19132") }
+        )
+        Spacer(Modifier.height(12.dp))
         Button(
             onClick = {
-                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                clipboard.setPrimaryClip(ClipData.newPlainText("CraftNode Bedrock server", serverAddress))
-                copied = true
+                val configResult = runCatching {
+                    app.bedrockhost.mobile.multiplayer.FrpUdpTunnelConfig(
+                        relayHost = relayHost,
+                        relayControlPort = controlPort.toInt(),
+                        authToken = authToken,
+                        publicUdpPort = publicPort.toInt(),
+                        localUdpPort = localPort.toInt()
+                    )
+                }
+                configResult.onSuccess { config ->
+                    val serviceIntent = Intent(context, app.bedrockhost.mobile.multiplayer.FrpTunnelService::class.java)
+                        .setAction(app.bedrockhost.mobile.multiplayer.FrpTunnelService.ACTION_START)
+                        .putExtra(app.bedrockhost.mobile.multiplayer.FrpTunnelService.EXTRA_RELAY_HOST, config.relayHost)
+                        .putExtra(app.bedrockhost.mobile.multiplayer.FrpTunnelService.EXTRA_CONTROL_PORT, config.relayControlPort)
+                        .putExtra(app.bedrockhost.mobile.multiplayer.FrpTunnelService.EXTRA_AUTH_TOKEN, config.authToken)
+                        .putExtra(app.bedrockhost.mobile.multiplayer.FrpTunnelService.EXTRA_PUBLIC_UDP_PORT, config.publicUdpPort)
+                        .putExtra(app.bedrockhost.mobile.multiplayer.FrpTunnelService.EXTRA_LOCAL_UDP_PORT, config.localUdpPort)
+                    runCatching { androidx.core.content.ContextCompat.startForegroundService(context, serviceIntent) }
+                        .onSuccess { notice = "Tunnel start requested. Check the CraftNode notification. The public address is not verified until a friend successfully joins." }
+                        .onFailure { notice = "Could not start tunnel service: ${it.message ?: "unknown error"}" }
+                }.onFailure { notice = it.message ?: "Invalid relay configuration." }
             },
-            enabled = validIp,
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = Purple)
-        ) { Text(if (copied) "ADDRESS COPIED" else "COPY SERVER ADDRESS") }
+        ) { Text("START REMOTE TUNNEL") }
         Spacer(Modifier.height(8.dp))
         OutlinedButton(
             onClick = {
-                val uri = android.net.Uri.Builder()
-                    .scheme("minecraft")
-                    .appendQueryParameter("addExternalServer", "CraftNode|$serverAddress")
-                    .build()
-                val intent = Intent(Intent.ACTION_VIEW, uri)
-                try {
-                    context.startActivity(intent)
-                    launchNotice = "Minecraft opened with a request to add this server. If it only opens the game, add $serverAddress manually in Servers."
-                } catch (_: android.content.ActivityNotFoundException) {
-                    launchNotice = "Minecraft could not be opened. Make sure Minecraft Bedrock is installed, then try again."
-                }
+                val serviceIntent = Intent(context, app.bedrockhost.mobile.multiplayer.FrpTunnelService::class.java)
+                    .setAction(app.bedrockhost.mobile.multiplayer.FrpTunnelService.ACTION_STOP)
+                runCatching { context.startService(serviceIntent) }
+                    .onSuccess { notice = "Tunnel stop requested." }
+                    .onFailure { notice = "Could not stop tunnel: ${it.message ?: "unknown error"}" }
+                authToken = ""
             },
-            enabled = validIp,
             modifier = Modifier.fillMaxWidth()
-        ) { Text("OPEN IN MINECRAFT") }
-        if (launchNotice.isNotBlank()) {
-            Spacer(Modifier.height(6.dp))
-            Text(launchNotice, color = if (launchNotice.startsWith("Minecraft could")) Color(0xFFFFC76A) else Muted, fontSize = 11.sp, lineHeight = 16.sp)
-        }
-        Spacer(Modifier.height(12.dp))
-        Text("This hands the address to Minecraft if the installed version supports the deep link. Android/Minecraft may not join the server automatically; if it doesn't, add the address in Minecraft → Servers. Tailscale provides the private network path; CraftNode does not control Tailscale or verify connectivity.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
+        ) { Text("STOP REMOTE TUNNEL") }
         Spacer(Modifier.height(10.dp))
-        Text("Security note: the current engine configuration disables Xbox identity verification for compatibility. Only share access with people you trust.", color = Color(0xFFFFC76A), fontSize = 11.sp, lineHeight = 16.sp)
+        Text(notice, color = if (notice.startsWith("Invalid") || notice.startsWith("Could not")) Color(0xFFFFC76A) else Muted, fontSize = 11.sp, lineHeight = 16.sp)
+        Spacer(Modifier.height(10.dp))
+        Text(
+            "Once the tunnel process is connected, give friends the relay hostname and public UDP port in Minecraft → Servers → Add Server. CraftNode currently cannot verify a Bedrock handshake, so process startup alone does not mean joining works.",
+            color = Muted, fontSize = 11.sp, lineHeight = 16.sp
+        )
+        Spacer(Modifier.height(10.dp))
+        Text(
+            "Security note: the current engine configuration disables Xbox identity verification for compatibility. Only share access with trusted players.",
+            color = Color(0xFFFFC76A), fontSize = 11.sp, lineHeight = 16.sp
+        )
     }
 }
 
