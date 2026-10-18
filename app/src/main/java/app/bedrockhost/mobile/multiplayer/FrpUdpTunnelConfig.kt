@@ -53,7 +53,7 @@ data class FrpUdpTunnelConfig(
             val labels = host.split('.')
             if (labels.any { it.isEmpty() || !HOST_LABEL.matches(it) }) return false
             val looksLikeIpv4 = labels.size == 4 && labels.all { label -> label.all { it.isDigit() } }
-            return !looksLikeIpv4 || labels.all { it.toIntOrNull() in 0..255 }
+            return !looksLikeIpv4 || labels.all { label -> label.toIntOrNull()?.let { value -> value in 0..255 } == true }
         }
 
         private fun quoted(value: String): String = 34.toChar().toString() + value + 34.toChar()
