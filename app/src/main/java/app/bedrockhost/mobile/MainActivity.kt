@@ -674,7 +674,7 @@ private fun SettingsPage(nativeReport: String, selectedEngine: String, onSelectE
         SettingRow("Engine diagnostics", nativeReport)
         SettingRow("World data", "Stored locally in app-private storage. Avoid uninstalling the app until worlds are backed up.")
         SettingRow("Experimental engine", "Falcon is experimental; keep NovaMine installed until device compatibility is confirmed.")
-        SettingRow("App version", "1.0.13")
+        SettingRow("App version", "1.0.16")
     }
 }
 
