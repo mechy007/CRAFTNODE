@@ -30,7 +30,7 @@ class FrpUdpTunnelController(
             return false
         }
         if (!executable.isFile || !executable.canExecute()) {
-            onLog("Remote tunnel unavailable: the verified FRP client is not bundled in this build.")
+            onLog("Remote tunnel unavailable: the FRP client binary is missing or not executable in this installation.")
             return false
         }
 
