@@ -378,10 +378,8 @@ private fun RemoteAccessPage() {
         OutlinedButton(
             onClick = {
                 val serviceIntent = Intent(context, app.bedrockhost.mobile.multiplayer.FrpTunnelService::class.java)
-                    .setAction(app.bedrockhost.mobile.multiplayer.FrpTunnelService.ACTION_STOP)
-                runCatching { context.startService(serviceIntent) }
-                    .onSuccess { notice = "Tunnel stop requested." }
-                    .onFailure { notice = "Could not stop tunnel: ${it.message ?: "unknown error"}" }
+                val stopped = context.stopService(serviceIntent)
+                notice = if (stopped) "Tunnel stop requested." else "No active tunnel service was running."
                 authToken = ""
             },
             modifier = Modifier.fillMaxWidth()
