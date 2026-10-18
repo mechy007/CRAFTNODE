@@ -27,6 +27,13 @@ Let a friend join a CraftNode-hosted Bedrock-compatible server from another netw
 - [ ] Test reconnect after mobile network changes, relay failures, Android background limits, and cleanup.
 - [ ] Verify Falcon's installed build and selected transport configuration against the exact binary shipped in CraftNode.
 
+## Relay feasibility findings
+
+- FRP is the client/server tunnel protocol CraftNode currently implements. A separate public `frps` instance is still required; the app cannot create one by itself.
+- Playit advertises a free Bedrock option, but its official supported-platform list does not include Android. Its current Bedrock documentation also describes a transport distinction: free Bedrock use may depend on RakNet, while NetherNet forwarding has different plan requirements. Therefore it is not yet a verified drop-in relay for CraftNode on Android.
+- Do not treat generic free web hosting, TCP-only proxies, or a provider's free trial as a free public UDP relay. Confirm public UDP support, persistent service availability, and terms before integrating a provider.
+- No relay provider is currently configured or provisioned by this repository.
+
 ## Important behavior
 
 The CI workflow packages the FRP client, but a client binary is not a relay. The current feature requires a separately operated, publicly reachable FRP server with UDP forwarding and matching authentication settings. A successful service start or FRP process launch does not prove that the relay authenticated, the UDP proxy registered, or Minecraft can connect. Remote multiplayer is not verified yet.
