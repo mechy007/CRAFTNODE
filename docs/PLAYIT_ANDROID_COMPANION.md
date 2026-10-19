@@ -1,6 +1,6 @@
 # Playit companion setup for CraftNode (experimental)
 
-CraftNode v1.0.18 adds onboarding for a **Termux-based Playit companion workflow**. This is not native Playit process integration: Android apps are sandboxed, and the official Linux ARM64 release is not assumed to be executable on Android. The companion route uses a Termux package built for that environment.
+CraftNode v1.0.20 adds the pinned official Playit agent's Android ARM64 daemon and CLI to the build pipeline as experimental native payloads. The current app still retains the Termux companion instructions while in-app process lifecycle, authorization, endpoint reporting, and remote-join validation are being completed. This is not native Playit process integration: Android apps are sandboxed, and the official Linux ARM64 release is not assumed to be executable on Android. The companion route uses a Termux package built for that environment.
 
 ## Important limitations
 
@@ -30,9 +30,10 @@ The CLI may require agent setup/authorization. If `playit-cli` cannot connect to
 
 - [x] Remote screen explains the companion route and copies initial Termux commands.
 - [x] Existing FRP controls remain unchanged.
-- [ ] Native Playit runtime packaged and launched by CraftNode.
+- [x] Pinned official Playit daemon and CLI cross-compiled for Android ARM64 and packaged into the v1.0.20 build pipeline.
+- [ ] Native Playit runtime launched and supervised by CraftNode.
 - [ ] Secure in-app agent authorization/configuration.
 - [ ] Confirm public UDP tunnel registration and assigned endpoint in the app.
 - [ ] Successful remote Bedrock join verified on a second device.
 
-This feature must not be described as fully integrated or working until the unchecked runtime and real-device validation steps pass.
+Important: packaging the native executables is not the same as launching them. Do not describe Playit as fully integrated until in-app lifecycle, authorization, endpoint discovery, and a successful remote Bedrock join from a second network have all been tested.

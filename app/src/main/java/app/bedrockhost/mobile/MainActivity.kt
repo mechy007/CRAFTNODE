@@ -313,7 +313,7 @@ private fun RemoteAccessPage() {
                 Text("Free public tunnel option", color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "Playit is not built into CraftNode yet. The Android-compatible route currently requires the separate Termux app and its TUR package; keep CraftNode running on UDP 19132, then configure a Playit UDP tunnel to that local port. The Linux ARM64 download is not assumed to run natively on Android. NetherNet/client compatibility must be tested before this is marked working.",
+                    "The v1.0.20 build now bundles the pinned official Playit Android ARM64 daemon and CLI as experimental native payloads. In-app launch, authorization, live endpoint reporting, and stop/status controls are not yet complete, so use the Termux companion workflow below for now. Keep the server on UDP 19132 and verify a real join from another network before relying on a tunnel.",
                     color = Muted, fontSize = 12.sp, lineHeight = 18.sp
                 )
                 Spacer(Modifier.height(10.dp))
@@ -712,7 +712,7 @@ private fun SettingsPage(nativeReport: String, selectedEngine: String, onSelectE
         SettingRow("Engine diagnostics", nativeReport)
         SettingRow("World data", "Stored locally in app-private storage. Avoid uninstalling the app until worlds are backed up.")
         SettingRow("Experimental engine", "Falcon is experimental; keep NovaMine installed until device compatibility is confirmed.")
-        SettingRow("App version", "1.0.18")
+        SettingRow("App version", "1.0.20")
     }
 }
 
