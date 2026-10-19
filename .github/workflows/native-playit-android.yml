@@ -1,0 +1,79 @@
+name: CraftNode native Playit Android ARM64 bundle
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/native-playit-android.yml"
+      - "app/**"
+      - "docs/PLAYIT_ANDROID_COMPANION.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-native-agent:
+    name: Cross-compile and package Playit agent payload
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out CraftNode
+        uses: actions/checkout@v4
+
+      - name: Check out pinned official Playit agent
+        uses: actions/checkout@v4
+        with:
+          repository: playit-cloud/playit-agent
+          ref: v1.0.12
+          path: playit-agent
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Install Android SDK packages
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;27.2.12479018"
+
+      - name: Cross-compile Playit daemon and CLI
+        shell: bash
+        working-directory: playit-agent
+        run: |
+          set -euo pipefail
+          NDK="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          test -x "$NDK/aarch64-linux-android24-clang"
+          export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$NDK/aarch64-linux-android24-clang"
+          export CC_aarch64_linux_android="$NDK/aarch64-linux-android24-clang"
+          export AR_aarch64_linux_android="$NDK/llvm-ar"
+          cargo build --locked --release --target aarch64-linux-android -p playitd --bin playitd -p playit-cli --bin playit-cli
+          DAEMON="target/aarch64-linux-android/release/playitd"
+          CLI="target/aarch64-linux-android/release/playit-cli"
+          test -f "$DAEMON"
+          test -f "$CLI"
+          readelf -h "$DAEMON" | grep -q 'AArch64'
+          readelf -h "$CLI" | grep -q 'AArch64'
+          mkdir -p ../app/src/main/jniLibs/arm64-v8a
+          cp "$DAEMON" ../app/src/main/jniLibs/arm64-v8a/libplayitd.so
+          cp "$CLI" ../app/src/main/jniLibs/arm64-v8a/libplayit_cli.so
+          chmod 755 ../app/src/main/jniLibs/arm64-v8a/libplayitd.so ../app/src/main/jniLibs/arm64-v8a/libplayit_cli.so
+          sha256sum ../app/src/main/jniLibs/arm64-v8a/libplayitd.so ../app/src/main/jniLibs/arm64-v8a/libplayit_cli.so
+
+      - name: Run project validation and Android tests
+        run: |
+          python3 tools/validate_project.py
+          gradle --no-daemon testDebugUnitTest assembleDebug
+
+      - name: Upload experimental APK for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: CraftNode-native-playit-experimental
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
