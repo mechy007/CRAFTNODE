@@ -95,9 +95,10 @@ def main() -> int:
             and "COPY TERMUX SETUP COMMANDS" in main_activity
             and "not start a tunnel from CraftNode" in main_activity,
             "Remote screen clearly labels Playit as an external experimental companion")
-    require("Native Playit runtime packaged and launched by CraftNode" in playit_doc
-            and "real-device validation" in playit_doc
-            and "UDP" in playit_doc,
+    require("not the same as launching them" in playit_doc
+            and "real-device test" in playit_doc
+            and "UDP" in playit_doc
+            and "Native Playit runtime launched and supervised by CraftNode" in playit_doc,
             "Playit guide records honest integration status and required remote UDP validation")
     require('private fun RemoteAccessPage()' in main_activity and 'START REMOTE TUNNEL' in main_activity
             and 'FrpTunnelService.ACTION_START' in main_activity and '19132' in main_activity
