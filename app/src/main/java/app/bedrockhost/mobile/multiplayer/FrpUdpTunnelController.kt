@@ -35,7 +35,9 @@ class FrpUdpTunnelController(
         }
 
         return try {
-            configFile.parentFile?.mkdirs()
+            check(configFile.parentFile?.mkdirs() == true || configFile.parentFile?.isDirectory == true) {
+                "Cannot create private remote-tunnel directory."
+            }
             configFile.writeText(config.toToml(), Charsets.UTF_8)
             // filesDir is app-private; explicitly restrict the config containing the relay token.
             configFile.setReadable(false, false)
@@ -50,19 +52,28 @@ class FrpUdpTunnelController(
             process = started
             onLog("FRP client process launched; waiting for relay authentication and UDP proxy registration.")
             reader = thread(name = "CraftNode-FRP-Logs") {
-                started.inputStream.bufferedReader().useLines { lines ->
-                    lines.forEach { line ->
-                        // Never expose the configured authentication token in app logs.
-                        onLog(line.replace(config.authToken, "[REDACTED]").take(1000))
+                try {
+                    started.inputStream.bufferedReader().useLines { lines ->
+                        lines.forEach { line ->
+                            // Never expose the configured authentication token in app logs.
+                            onLog(line.replace(config.authToken, "[REDACTED]").take(1000))
+                        }
                     }
+                } catch (e: Exception) {
+                    onLog("FRP log reader stopped: ${e.javaClass.simpleName}.")
+                } finally {
+                    val exitCode = runCatching { started.waitFor() }.getOrNull()
+                    if (process === started) {
+                        process = null
+                        deleteConfigAfterExit()
+                    }
+                    onLog("FRP client exited with code ${exitCode ?: "unknown"}.")
                 }
-                val exitCode = runCatching { started.waitFor() }.getOrNull()
-                if (process === started) process = null
-                onLog("FRP client exited with code ${exitCode ?: "unknown"}.")
             }
             true
         } catch (e: Exception) {
             process = null
+            deleteConfigAfterExit()
             onLog("FRP client launch failed: ${e.javaClass.simpleName}: ${e.message ?: "unknown error"}")
             false
         }
@@ -73,6 +84,7 @@ class FrpUdpTunnelController(
         val running = process
         if (running == null || !running.isAlive) {
             onLog("Remote tunnel stop requested: no active FRP process.")
+            deleteConfigAfterExit()
             return
         }
         onLog("Stopping FRP client.")
@@ -83,8 +95,10 @@ class FrpUdpTunnelController(
             } catch (e: InterruptedException) {
                 Thread.currentThread().interrupt()
                 running.destroyForcibly()
+            } finally {
+                if (process === running) process = null
+                deleteConfigAfterExit()
             }
-            if (process === running) process = null
         }
     }
 
@@ -93,6 +107,10 @@ class FrpUdpTunnelController(
     @Synchronized
     fun forgetLocalConfig() {
         stop()
+        deleteConfigAfterExit()
+    }
+
+    private fun deleteConfigAfterExit() {
         if (configFile.exists() && !configFile.delete()) {
             onLog("Warning: unable to delete the saved FRP config immediately.")
         }

@@ -269,6 +269,7 @@ private fun CraftNodeApp() {
 @Composable
 private fun RemoteAccessPage() {
     val context = LocalContext.current
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
     var relayHost by remember { mutableStateOf("") }
     var controlPort by remember { mutableStateOf("7000") }
     var authToken by remember { mutableStateOf("") }
@@ -384,6 +385,17 @@ private fun RemoteAccessPage() {
             },
             modifier = Modifier.fillMaxWidth()
         ) { Text("STOP REMOTE TUNNEL") }
+        Spacer(Modifier.height(8.dp))
+        val parsedPublicPort = publicPort.toIntOrNull()
+        OutlinedButton(
+            onClick = {
+                val endpoint = "${relayHost.trim()}:${parsedPublicPort}"
+                clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(endpoint))
+                notice = "Copied configured endpoint. The relay and Bedrock join are not verified yet."
+            },
+            enabled = relayHost.isNotBlank() && parsedPublicPort != null && parsedPublicPort in 1..65535,
+            modifier = Modifier.fillMaxWidth()
+        ) { Text("COPY JOIN ADDRESS") }
         Spacer(Modifier.height(10.dp))
         Text(notice, color = if (notice.startsWith("Invalid") || notice.startsWith("Could not")) Color(0xFFFFC76A) else Muted, fontSize = 11.sp, lineHeight = 16.sp)
         Spacer(Modifier.height(10.dp))
