@@ -57,13 +57,27 @@ fun LocalHostDashboard(onOpenConsole: () -> Unit) {
         }
     }
 
-    val lastState = logs.lineSequence().lastOrNull { line ->
-        line.contains("process started") || line.contains("exited with code") ||
-            line.contains("Start failed:") || line.contains("no active server process")
+    val logLines = logs.lineSequence().toList()
+    val lastStartIndex = logLines.indexOfLast { line ->
+        line.contains("process started") || line.contains("process launched")
+    }
+    val lastStopIndex = logLines.indexOfLast { line ->
+        line.contains("exited with code") || line.contains("Start failed:")
+    }
+    // A spawned process is not proof that the Bedrock server finished booting.
+    // Only count readiness messages that occurred after the latest process start.
+    val running = lastStartIndex >= 0 && lastStartIndex > lastStopIndex
+    val serverReady = running && logLines.drop(lastStartIndex + 1).any { line ->
+        line.contains("Server started.", ignoreCase = true) ||
+            line.contains("Server started on", ignoreCase = true) ||
+            line.contains("server is now listening", ignoreCase = true)
+    }
+    val lastState = logLines.lastOrNull { line ->
+        line.contains("Start failed:") || line.contains("exited with code")
     }.orEmpty()
-    val running = lastState.contains("process started") && !lastState.contains("exited with code")
     val status = when {
-        running -> "PROCESS RUNNING"
+        serverReady -> "SERVER READY"
+        running -> "PROCESS STARTED · WAITING"
         lastState.contains("Start failed:") -> "START FAILED"
         logs.isBlank() -> "NOT STARTED"
         else -> "OFFLINE / UNKNOWN"
@@ -82,9 +96,9 @@ fun LocalHostDashboard(onOpenConsole: () -> Unit) {
                 Modifier.background(HostPanel, CircleShape).border(1.dp, HostLine, CircleShape).padding(horizontal = 10.dp, vertical = 7.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(Modifier.size(7.dp).background(if (running) HostGreen else Color(0xFFF87171), CircleShape))
+                Box(Modifier.size(7.dp).background(if (serverReady) HostGreen else if (running) Color(0xFFFBBF24) else Color(0xFFF87171), CircleShape))
                 Spacer(Modifier.width(6.dp))
-                Text(status, color = if (running) HostGreen else Color(0xFFFCA5A5), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                Text(status, color = if (serverReady) HostGreen else if (running) Color(0xFFFBBF24) else Color(0xFFFCA5A5), fontSize = 9.sp, fontWeight = FontWeight.Bold)
             }
         }
 
