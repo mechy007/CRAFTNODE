@@ -44,6 +44,9 @@ jobs:
           NDK="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin"
           test -x "$NDK/aarch64-linux-android24-clang"
           export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$NDK/aarch64-linux-android24-clang"
+          # ring uses the cc crate and expects an explicit target C compiler.
+          export CC_aarch64_linux_android="$NDK/aarch64-linux-android24-clang"
+          export AR_aarch64_linux_android="$NDK/llvm-ar"
           cargo build --locked --release --target aarch64-linux-android
 
       - name: Report build artifact without publishing it
