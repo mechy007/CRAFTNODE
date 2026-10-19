@@ -43,7 +43,7 @@ def main() -> int:
     packaging_ok = re.search(r'keepDebugSymbols\s*\+=\s*["\']\*\*/libphp\.so["\']', gradle) and re.search(r'useLegacyPackaging\s*=\s*true', gradle)
     require(bool(packaging_ok),
             "Android packaging extracts the bundled PHP executable into nativeLibraryDir")
-    require('versionCode = 121' in gradle and 'versionName = "1.0.20"' in gradle,
+    require('versionCode = 121' in gradle and 'versionName = "1.0.21"' in gradle,
             "version code and name are bumped")
     require('ndkVersion = "27.2.12479018"' in gradle and 'src/main/cpp/CMakeLists.txt' in gradle,
             "Android build pins NDK and enables CMake")
