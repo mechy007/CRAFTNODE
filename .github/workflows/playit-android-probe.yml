@@ -1,0 +1,56 @@
+name: Playit Android ARM64 compatibility probe
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/playit-android-probe.yml"
+      - "docs/PLAYIT_ANDROID_COMPANION.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android-arm64-cross-compile:
+    name: Check upstream Playit agent Android ARM64 buildability
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out CraftNode
+        uses: actions/checkout@v4
+
+      - name: Check out official Playit agent source
+        uses: actions/checkout@v4
+        with:
+          repository: playit-cloud/playit-agent
+          ref: v1.0.12
+          path: playit-agent
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Install Android NDK
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;27.2.12479018"
+
+      - name: Cross-compile official Playit source for Android ARM64
+        shell: bash
+        working-directory: playit-agent
+        run: |
+          set -euo pipefail
+          NDK="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          test -x "$NDK/aarch64-linux-android24-clang"
+          export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$NDK/aarch64-linux-android24-clang"
+          cargo build --locked --release --target aarch64-linux-android
+
+      - name: Report build artifact without publishing it
+        shell: bash
+        working-directory: playit-agent
+        run: |
+          set -euo pipefail
+          find target/aarch64-linux-android/release -maxdepth 1 -type f -executable -printf '%f\n'
+          test -n "$(find target/aarch64-linux-android/release -maxdepth 1 -type f -executable -print -quit)"
+          echo "Cross-compilation passed. Device runtime, IPC, networking, and Bedrock joining still require separate validation."
