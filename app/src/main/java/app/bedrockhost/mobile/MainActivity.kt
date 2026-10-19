@@ -302,6 +302,32 @@ private fun RemoteAccessPage() {
             }
         }
         Spacer(Modifier.height(14.dp))
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Panel),
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth().border(1.dp, Color(0xFF49366D), RoundedCornerShape(16.dp))
+        ) {
+            Column(Modifier.padding(16.dp)) {
+                Text("PLAYIT · EXPERIMENTAL COMPANION", color = Green, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.1.sp)
+                Spacer(Modifier.height(8.dp))
+                Text("Free public tunnel option", color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Playit is not built into CraftNode yet. The Android-compatible route currently requires the separate Termux app and its TUR package; keep CraftNode running on UDP 19132, then configure a Playit UDP tunnel to that local port. The Linux ARM64 download is not assumed to run natively on Android. NetherNet/client compatibility must be tested before this is marked working.",
+                    color = Muted, fontSize = 12.sp, lineHeight = 18.sp
+                )
+                Spacer(Modifier.height(10.dp))
+                OutlinedButton(
+                    onClick = {
+                        val setup = "pkg update -y\npkg install tur-repo -y\npkg install playit -y\n# Start the daemon (keep this Termux session running):\nplayitd &\n# Then open the CLI setup in another Termux command:\nplayit-cli"
+                        clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(setup))
+                        notice = "Copied Termux companion commands. Review docs/PLAYIT_ANDROID_COMPANION.md before running; this does not start a tunnel from CraftNode."
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("COPY TERMUX SETUP COMMANDS") }
+            }
+        }
+        Spacer(Modifier.height(14.dp))
         Text("Relay hostname or IPv4", color = TextMain, fontSize = 13.sp, fontWeight = FontWeight.Bold)
         OutlinedTextField(
             value = relayHost,
@@ -686,7 +712,7 @@ private fun SettingsPage(nativeReport: String, selectedEngine: String, onSelectE
         SettingRow("Engine diagnostics", nativeReport)
         SettingRow("World data", "Stored locally in app-private storage. Avoid uninstalling the app until worlds are backed up.")
         SettingRow("Experimental engine", "Falcon is experimental; keep NovaMine installed until device compatibility is confirmed.")
-        SettingRow("App version", "1.0.16")
+        SettingRow("App version", "1.0.18")
     }
 }
 
