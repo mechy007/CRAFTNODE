@@ -43,7 +43,7 @@ def main() -> int:
     packaging_ok = re.search(r'keepDebugSymbols\s*\+=\s*["\']\*\*/libphp\.so["\']', gradle) and re.search(r'useLegacyPackaging\s*=\s*true', gradle)
     require(bool(packaging_ok),
             "Android packaging extracts the bundled PHP executable into nativeLibraryDir")
-    require('versionCode = 117' in gradle and 'versionName = "1.0.17"' in gradle,
+    require('versionCode = 118' in gradle and 'versionName = "1.0.18"' in gradle,
             "version code and name are bumped")
     require('ndkVersion = "27.2.12479018"' in gradle and 'src/main/cpp/CMakeLists.txt' in gradle,
             "Android build pins NDK and enables CMake")
@@ -88,6 +88,15 @@ def main() -> int:
             "engine installation is gated by the matching engine and Minecraft version")
     require("RESTART" in dashboard and "App heap" in dashboard,
             "hosting dashboard includes restart and memory information")
+    playit_doc = (ROOT / "docs/PLAYIT_ANDROID_COMPANION.md").read_text()
+    require("PLAYIT · EXPERIMENTAL COMPANION" in main_activity
+            and "COPY TERMUX SETUP COMMANDS" in main_activity
+            and "not start a tunnel from CraftNode" in main_activity,
+            "Remote screen clearly labels Playit as an external experimental companion")
+    require("Native Playit runtime packaged and launched by CraftNode" in playit_doc
+            and "real-device validation" in playit_doc
+            and "UDP" in playit_doc,
+            "Playit guide records honest integration status and required remote UDP validation")
     require('private fun RemoteAccessPage()' in main_activity and 'START REMOTE TUNNEL' in main_activity
             and 'FrpTunnelService.ACTION_START' in main_activity and '19132' in main_activity
             and 'COPY JOIN ADDRESS' in main_activity,
