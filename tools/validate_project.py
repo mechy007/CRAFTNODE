@@ -88,6 +88,15 @@ def main() -> int:
             "engine installation is gated by the matching engine and Minecraft version")
     require("RESTART" in dashboard and "App heap" in dashboard,
             "hosting dashboard includes restart and memory information")
+    playit_doc = (ROOT / "docs/PLAYIT_ANDROID_COMPANION.md").read_text()
+    require("PLAYIT · EXPERIMENTAL COMPANION" in main_activity
+            and "COPY TERMUX SETUP COMMANDS" in main_activity
+            and "not start a tunnel from CraftNode" in main_activity,
+            "Remote screen clearly labels Playit as an external experimental companion")
+    require("Native Playit runtime packaged and launched by CraftNode" in playit_doc
+            and "real-device validation" in playit_doc
+            and "UDP" in playit_doc,
+            "Playit guide records honest integration status and required remote UDP validation")
     require('private fun RemoteAccessPage()' in main_activity and 'START REMOTE TUNNEL' in main_activity
             and 'FrpTunnelService.ACTION_START' in main_activity and '19132' in main_activity
             and 'COPY JOIN ADDRESS' in main_activity,
