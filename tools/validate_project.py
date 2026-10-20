@@ -98,7 +98,7 @@ def main() -> int:
     require("physical-device validation" in playit_doc
             and "real-device test" in playit_doc
             and "UDP" in playit_doc
-            and "Native Playit runtime launched and supervised by CraftNode" in playit_doc,
+            and "foreground service" in playit_doc,
             "Playit guide records honest integration status and required remote UDP validation")
     require('private fun RemoteAccessPage()' in main_activity and 'START REMOTE TUNNEL' in main_activity
             and 'FrpTunnelService.ACTION_START' in main_activity and '19132' in main_activity
