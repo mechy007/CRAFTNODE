@@ -64,6 +64,7 @@ class NativePlayitService : Service() {
             ACTION_FORGET_SECRET -> {
                 controller?.stop()
                 controller?.forgetSecret()
+                getSharedPreferences(PREFS, 0).edit().putBoolean(KEY_AUTHORIZED, false).remove(KEY_CLAIM_URL).apply()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf(startId)
             }
@@ -100,6 +101,7 @@ class NativePlayitService : Service() {
         const val PREFS = "craftnode_playit"
         const val KEY_STATUS = "status"
         const val KEY_CLAIM_URL = "claim_url"
+        const val KEY_AUTHORIZED = "authorized"
         private const val TAG = "CraftNodePlayit"
         private const val CHANNEL_ID = "craftnode_playit"
         private const val NOTIFICATION_ID = 403
