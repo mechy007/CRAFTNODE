@@ -40,6 +40,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Gamepad
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Terminal
@@ -104,7 +105,7 @@ class MainActivity : ComponentActivity() {
 }
 
 private enum class Page(val label: String) {
-    Play("Home"), Host("Host"), Remote("Remote"), Console("Console"), Settings("Settings")
+    Play("Home"), Host("Host"), Remote("Remote"), Console("Console"), Worlds("Worlds"), Players("Players"), Settings("Settings")
 }
 
 @Composable
@@ -182,7 +183,8 @@ private fun CraftNodeApp() {
                         val profileId = when (selectedProfile) {
                             "Friends SMP" -> "friends"
                             "Creative Test" -> "creative"
-                            else -> "survival"
+                            "Survival World" -> "survival"
+                            else -> selectedProfile.replace(Regex("[^A-Za-z0-9_-]"), "_").take(64)
                         }
                         val intent = Intent(context, ServerHostService::class.java)
                             .setAction(ServerHostService.ACTION_START)
@@ -196,6 +198,12 @@ private fun CraftNodeApp() {
                     onOpen = { page = it }
                 )
                 Page.Host -> LocalHostDashboard(onOpenConsole = { page = Page.Console })
+                Page.Worlds -> WorldManagerPage(
+                    selectedProfile = selectedProfile,
+                    onSelectProfile = { selectedProfile = it; notice = "$it selected." },
+                    onBack = { page = Page.Play }
+                )
+                Page.Players -> PlayerManagerPage(onBack = { page = Page.Play })
                 Page.Remote -> RemoteAccessPage()
                 Page.Settings -> SettingsPage(
                     nativeReport = NativeDiagnostics.report(),
@@ -234,7 +242,7 @@ private fun CraftNodeApp() {
                 contentColor = TextMain,
                 windowInsets = WindowInsets.navigationBars
             ) {
-                listOf(Page.Play, Page.Host, Page.Remote, Page.Console, Page.Settings).forEach { item ->
+                listOf(Page.Play, Page.Host, Page.Settings).forEach { item ->
                     NavigationBarItem(
                         selected = page == item,
                         onClick = { page = item },
@@ -245,6 +253,8 @@ private fun CraftNodeApp() {
                                     Page.Host -> Icons.Default.Gamepad
                                     Page.Remote -> Icons.Default.Cloud
                                     Page.Console -> Icons.Default.Terminal
+                                    Page.Worlds -> Icons.Default.Folder
+                                    Page.Players -> Icons.Default.Groups
                                     Page.Settings -> Icons.Default.Settings
                                 },
                                 contentDescription = item.label
@@ -471,6 +481,12 @@ private fun PlayPage(
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 ToolCard(Icons.Default.Terminal, "Console", "Real server logs", Purple, Modifier.weight(1f)) { onOpen(Page.Console) }
                 ToolCard(Icons.Default.Cloud, "Remote access", "Private VPN setup", TileBlue, Modifier.weight(1f)) { onOpen(Page.Remote) }
+            }
+        }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                ToolCard(Icons.Default.Folder, "Worlds", "Profiles and backups", TileOrange, Modifier.weight(1f)) { onOpen(Page.Worlds) }
+                ToolCard(Icons.Default.Groups, "Players", "Commands and access", TilePink, Modifier.weight(1f)) { onOpen(Page.Players) }
             }
         }
     }
