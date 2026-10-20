@@ -1,20 +1,27 @@
-# Playit companion setup for CraftNode (experimental)
+# Native Playit integration for CraftNode (beta)
 
-CraftNode v1.0.20 adds the pinned official Playit agent's Android ARM64 daemon and CLI to the build pipeline as experimental native payloads. The current app still retains the Termux companion instructions while in-app process lifecycle, authorization, endpoint reporting, and remote-join validation are being completed. This is not native Playit process integration: Android apps are sandboxed, and the official Linux ARM64 release is not assumed to be executable on Android. The companion route uses a Termux package built for that environment.
+CraftNode now includes an initial native Android ARM64 Playit daemon integration using the official Playit agent pinned at v1.0.12. The Remote Access screen can request daemon start/stop, provision a secret key through the daemon's local IPC endpoint, and request tunnel state/endpoints. The existing FRP provider remains available as a separate option.
 
-## Important limitations
+## Use
 
-- Keep the CraftNode Bedrock-compatible server running on local UDP port **19132**.
-- Install Termux from its official distribution source, then use the Termux User Repository (TUR) package for Playit. Package availability and commands can change; consult the TUR/Playit community guidance if a command fails.
-- Start the Playit daemon and use its CLI to claim/authorize the agent. Do not paste a Playit secret into CraftNode or share it with friends.
-- In the Playit dashboard, create a **UDP** tunnel targeting the phone's local server port **19132**. Use the public hostname/port that Playit assigns.
-- Keep Android battery/background restrictions from stopping either CraftNode or Termux. A tunnel process launching is not proof the relay works.
-- Test a real Bedrock join from a different network. Modern Bedrock clients may use NetherNet; agent release notes mention support in 1.0.12, but CraftNode's engine/client combination still requires a real-device test.
-- Do not remove or replace the existing FRP option; it remains a separate provider and requires an FRP server.
+1. Install a CraftNode APK built by the Android workflow. The workflow cross-compiles and packages `libplayitd.so` and `libplayit_cli.so` for Android ARM64.
+2. Open **Remote access → Native Playit Agent** and tap **Start agent**.
+3. To authorize, obtain a Playit agent secret through your Playit account setup/dashboard and paste it into CraftNode's private key field. Tap **Authorize**. The secret is passed to the daemon over its local IPC socket; CraftNode does not put it in ordinary logs.
+4. Tap **Refresh status** to request the daemon's current state and reported tunnel addresses. Configure the assigned UDP tunnel to target the local Bedrock server port **19132** in the Playit dashboard if required by your account.
+5. Start the Bedrock server, then test a real join from another device on a different network using the exact public hostname and port shown by the agent/dashboard.
+6. Use **Stop agent** when finished. Keep Android battery/background restrictions from killing CraftNode during hosting.
 
-## Suggested Termux setup
+## Security and limitations
 
-Run these in Termux, not in CraftNode's console:
+- The secret is sent to the daemon over a local filesystem socket and is intended to be persisted by Playit's daemon in CraftNode's private app storage. Do not share it with friends or screenshots.
+- The UI reports daemon state and any endpoints returned by the pinned Playit IPC protocol. A running daemon is **not** proof that the public tunnel is reachable.
+- The packaged binaries are Android ARM64 builds. Other CPU architectures are not supported by this initial integration.
+- Device-specific execution permissions, IPC behavior, secret provisioning, lifecycle behavior, and real Bedrock remote joining still require physical-device validation. If native launch or authorization fails, use the Termux companion instructions below or the existing FRP option.
+- Keep the FRP provider; it requires a separately hosted FRP relay and is not replaced by Playit.
+
+## Termux fallback
+
+If native execution is unavailable on the device, run these commands in Termux:
 
 ```sh
 pkg update -y
@@ -24,16 +31,14 @@ playitd &
 playit-cli
 ```
 
-The CLI may require agent setup/authorization. If `playit-cli` cannot connect to the daemon, keep `playitd` running and consult the current package instructions rather than repeatedly reinstalling.
+Complete the CLI's authorization flow and create a UDP tunnel targeting local port 19132. A tunnel process launching is not proof the relay works.
 
-## Current implementation status
+## Implementation checklist
 
-- [x] Remote screen explains the companion route and copies initial Termux commands.
-- [x] Existing FRP controls remain unchanged.
-- [x] Pinned official Playit daemon and CLI cross-compiled for Android ARM64 and packaged into the v1.0.20 build pipeline.
-- [ ] Native Playit runtime launched and supervised by CraftNode.
-- [ ] Secure in-app agent authorization/configuration.
-- [ ] Confirm public UDP tunnel registration and assigned endpoint in the app.
-- [ ] Successful remote Bedrock join verified on a second device.
-
-Important: packaging the native executables is not the same as launching them. Do not describe Playit as fully integrated until in-app lifecycle, authorization, endpoint discovery, and a successful remote Bedrock join from a second network have all been tested.
+- [x] Pin and cross-compile official Playit daemon and CLI for Android ARM64.
+- [x] Add a foreground service to supervise the daemon.
+- [x] Add in-app start/stop, secret provisioning, status and endpoint requests through Playit's local IPC protocol.
+- [x] Keep the existing FRP option and Termux fallback.
+- [ ] Verify daemon execution and IPC on physical Android hardware.
+- [ ] Verify secret provisioning and endpoint display on a real Playit account.
+- [ ] Verify a successful remote Bedrock join from a second network.
