@@ -102,6 +102,8 @@ class NativePlayitService : Service() {
         const val KEY_STATUS = "status"
         const val KEY_CLAIM_URL = "claim_url"
         const val KEY_AUTHORIZED = "authorized"
+        const val KEY_ENDPOINTS = "public_endpoints"
+        const val KEY_TUNNEL_STATE = "tunnel_state"
         private const val TAG = "CraftNodePlayit"
         private const val CHANNEL_ID = "craftnode_playit"
         private const val NOTIFICATION_ID = 403
