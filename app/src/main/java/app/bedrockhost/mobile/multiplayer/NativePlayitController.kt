@@ -158,8 +158,13 @@ class NativePlayitController(context: Context, private val onStatus: (String) ->
                 if (address.isNotBlank()) endpoints += address
             }
         }
-        if (endpoints.isEmpty()) "Playit state: $stateName. No public tunnel endpoint reported yet."
-        else "Playit state: $stateName. Endpoints: ${endpoints.joinToString()}"
+        val endpointText = endpoints.distinct().joinToString("\n")
+        app.getSharedPreferences(NativePlayitService.PREFS, 0).edit()
+            .putString(NativePlayitService.KEY_ENDPOINTS, endpointText)
+            .putString(NativePlayitService.KEY_TUNNEL_STATE, stateName)
+            .apply()
+        if (endpoints.isEmpty()) "Playit state: $stateName. Waiting for a public tunnel endpoint."
+        else "Playit state: $stateName. Public endpoint available."
     }.getOrElse { "Playit status unavailable: ${it.javaClass.simpleName}." }
 
     @Synchronized
