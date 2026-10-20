@@ -111,7 +111,20 @@ class NativePlayitController(context: Context, private val onStatus: (String) ->
                     check(start()) { "Could not start the CraftNode Playit daemon." }
                     // The daemon may need a moment to create its private IPC socket after launch.
                     check(provisionSecretWhenReady(secret)) { "CraftNode could not install the generated Playit agent key." }
-                    onStatus("CraftNode agent authorized automatically. Refresh status to discover its public tunnel.")
+                    onStatus("CraftNode agent authorized automatically. Waiting for Playit to assign a public tunnel…")
+                    var attempts = 0
+                    while (attempts < 30 && app.getSharedPreferences(NativePlayitService.PREFS, 0)
+                            .getString(NativePlayitService.KEY_ENDPOINTS, "").isNullOrBlank()) {
+                        Thread.sleep(1000)
+                        status()
+                        attempts++
+                    }
+                    if (app.getSharedPreferences(NativePlayitService.PREFS, 0)
+                            .getString(NativePlayitService.KEY_ENDPOINTS, "").isNullOrBlank()) {
+                        onStatus("Agent authorized, but Playit has not reported a public endpoint yet. Tap Refresh tunnel to check again.")
+                    } else {
+                        onStatus("Playit public endpoint received and ready to copy. Test joining from another network.")
+                    }
                 }.onFailure { onStatus("CraftNode agent claim failed: ${it.message ?: "unknown error"}") }
             }
             url
@@ -192,7 +205,13 @@ class NativePlayitController(context: Context, private val onStatus: (String) ->
             .apply()
         if (endpoints.isEmpty()) "Playit state: $stateName. Waiting for a public tunnel endpoint."
         else "Playit state: $stateName. Public endpoint available."
-    }.getOrElse { "Playit status unavailable: ${it.javaClass.simpleName}." }
+    }.getOrElse {
+        app.getSharedPreferences(NativePlayitService.PREFS, 0).edit()
+            .putString(NativePlayitService.KEY_ENDPOINTS, "")
+            .putString(NativePlayitService.KEY_TUNNEL_STATE, "unavailable")
+            .apply()
+        "Playit status unavailable: ${it.javaClass.simpleName}."
+    }
 
     @Synchronized
     fun stop() {
