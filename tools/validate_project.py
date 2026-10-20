@@ -43,7 +43,7 @@ def main() -> int:
     packaging_ok = re.search(r'keepDebugSymbols\s*\+=\s*["\']\*\*/libphp\.so["\']', gradle) and re.search(r'useLegacyPackaging\s*=\s*true', gradle)
     require(bool(packaging_ok),
             "Android packaging extracts the bundled PHP executable into nativeLibraryDir")
-    require('versionCode = 121' in gradle and 'versionName = "1.0.21"' in gradle,
+    require('versionCode = 122' in gradle and 'versionName = "1.0.22"' in gradle,
             "version code and name are bumped")
     require('ndkVersion = "27.2.12479018"' in gradle and 'src/main/cpp/CMakeLists.txt' in gradle,
             "Android build pins NDK and enables CMake")
@@ -91,7 +91,9 @@ def main() -> int:
     require("SERVER READY" in dashboard and "Server started." in dashboard and "PROCESS STARTED · WAITING" in dashboard,
             "dashboard distinguishes a running process from a server that finished booting")
     playit_doc = (ROOT / "docs/PLAYIT_ANDROID_COMPANION.md").read_text()
-    require("PLAYIT · NATIVE BETA" in main_activity
+    require("Create CraftNode agent" in main_activity
+            and "Approve in browser" in main_activity
+            and "PLAYIT · NATIVE BETA" in main_activity
             and "COPY TERMUX SETUP COMMANDS" in main_activity
             and "NativePlayitService.ACTION_START" in main_activity,
             "Remote screen clearly labels Playit as an external experimental companion")
@@ -107,8 +109,8 @@ def main() -> int:
     native_playit = (ROOT / "app/src/main/java/app/bedrockhost/mobile/multiplayer/NativePlayitController.kt").read_text()
     native_playit_service = (ROOT / "app/src/main/java/app/bedrockhost/mobile/multiplayer/NativePlayitService.kt").read_text()
     manifest = (ROOT / "app/src/main/AndroidManifest.xml").read_text()
-    require("libplayitd.so" in native_playit and "set_secret" in native_playit
-            and "get_state" in native_playit and "ACTION_STOP" in native_playit_service
+    require("libplayitd.so" in native_playit and "libplayit_cli.so" in native_playit and "beginClaim" in native_playit and "set_secret" in native_playit
+            and "get_state" in native_playit and "ACTION_STOP" in native_playit_service and "ACTION_CLAIM" in native_playit_service
             and ".multiplayer.NativePlayitService" in manifest,
             "Native Playit daemon lifecycle, IPC authorization/status, and foreground service are wired")
     tunnel_service = (ROOT / "app/src/main/java/app/bedrockhost/mobile/multiplayer/FrpTunnelService.kt").read_text()

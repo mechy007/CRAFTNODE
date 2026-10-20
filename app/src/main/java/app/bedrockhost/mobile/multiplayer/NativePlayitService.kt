@@ -40,6 +40,13 @@ class NativePlayitService : Service() {
                     stopSelf(startId)
                 }
             }
+            ACTION_CLAIM -> {
+                val url = controller?.beginClaim()
+                if (url != null) {
+                    getSharedPreferences(PREFS, 0).edit().putString(KEY_CLAIM_URL, url).apply()
+                    getSharedPreferences(PREFS, 0).edit().putString(KEY_STATUS, "Approve the new CraftNode agent in your browser.").apply()
+                }
+            }
             ACTION_PROVISION -> {
                 val secret = intent.getStringExtra(EXTRA_SECRET).orEmpty()
                 controller?.provisionSecret(secret)
@@ -85,12 +92,14 @@ class NativePlayitService : Service() {
     companion object {
         const val ACTION_START = "app.bedrockhost.mobile.multiplayer.PLAYIT_START"
         const val ACTION_PROVISION = "app.bedrockhost.mobile.multiplayer.PLAYIT_PROVISION"
+        const val ACTION_CLAIM = "app.bedrockhost.mobile.multiplayer.PLAYIT_CLAIM"
         const val ACTION_STATUS = "app.bedrockhost.mobile.multiplayer.PLAYIT_STATUS"
         const val ACTION_STOP = "app.bedrockhost.mobile.multiplayer.PLAYIT_STOP"
         const val ACTION_FORGET_SECRET = "app.bedrockhost.mobile.multiplayer.PLAYIT_FORGET_SECRET"
         const val EXTRA_SECRET = "playit_secret"
         const val PREFS = "craftnode_playit"
         const val KEY_STATUS = "status"
+        const val KEY_CLAIM_URL = "claim_url"
         private const val TAG = "CraftNodePlayit"
         private const val CHANNEL_ID = "craftnode_playit"
         private const val NOTIFICATION_ID = 403

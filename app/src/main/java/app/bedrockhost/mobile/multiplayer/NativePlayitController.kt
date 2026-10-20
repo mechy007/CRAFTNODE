@@ -19,6 +19,7 @@ import kotlin.concurrent.thread
 class NativePlayitController(context: Context, private val onStatus: (String) -> Unit) {
     private val app = context.applicationContext
     private val daemon = File(app.applicationInfo.nativeLibraryDir, "libplayitd.so")
+    private val cli = File(app.applicationInfo.nativeLibraryDir, "libplayit_cli.so")
     private val socketPath = File(app.filesDir, "playit/playitd.sock").absolutePath
     private val secretPath = File(app.filesDir, "playit/secret.key")
     private val workDir = File(app.filesDir, "playit")
@@ -68,6 +69,57 @@ class NativePlayitController(context: Context, private val onStatus: (String) ->
             process = null
             onStatus("Native Playit launch failed: ${e.javaClass.simpleName}: ${e.message ?: "unknown error"}")
             false
+        }
+    }
+
+    /**
+     * Starts Playit's official self-managed claim flow. The browser approval is done by the user;
+     * the CLI waits for approval and returns the newly generated secret, which is provisioned
+     * to this app's own daemon. No Termux installation or Termux agent is reused.
+     */
+    @Synchronized
+    fun beginClaim(): String? {
+        if (!cli.isFile || !cli.canExecute()) {
+            onStatus("CraftNode's bundled Playit CLI is missing or not executable.")
+            return null
+        }
+        return runCatching {
+            check(workDir.mkdirs() || workDir.isDirectory) { "Cannot create private Playit directory." }
+            val codeProcess = ProcessBuilder(cli.absolutePath, "claim", "generate")
+                .directory(workDir).redirectErrorStream(true).start()
+            val code = codeProcess.inputStream.bufferedReader().readText().trim().also {
+                check(codeProcess.waitFor() == 0 && it.matches(Regex("[0-9a-fA-F]{10}"))) {
+                    "Playit CLI could not generate a claim code."
+                }
+            }
+            val urlProcess = ProcessBuilder(cli.absolutePath, "claim", "url", code, "--name", "CraftNode", "--type", "self-managed")
+                .directory(workDir).redirectErrorStream(true).start()
+            val url = urlProcess.inputStream.bufferedReader().readText().trim().also {
+                check(urlProcess.waitFor() == 0 && it.startsWith("https://playit.gg/claim/")) {
+                    "Playit CLI did not return a valid claim URL."
+                }
+            }
+            onStatus("Approve the new CraftNode agent in your browser: $url")
+            thread(name = "CraftNode-Playit-Claim") {
+                runCatching {
+                    val exchange = ProcessBuilder(cli.absolutePath, "claim", "exchange", code, "--wait", "300")
+                        .directory(workDir).redirectErrorStream(true).start()
+                    val output = exchange.inputStream.bufferedReader().readText().trim()
+                    check(exchange.waitFor() == 0) { "Playit claim was not approved or timed out." }
+                    val secret = output.lineSequence().map { it.trim() }.lastOrNull { it.isNotBlank() }
+                        ?: error("Playit returned an empty agent key.")
+                    check(secret.length <= 4096 && !secret.contains(" ") && !secret.contains("://")) {
+                        "Playit CLI returned an unexpected claim response."
+                    }
+                    check(start()) { "Could not start the CraftNode Playit daemon." }
+                    check(provisionSecret(secret)) { "Playit did not accept the new CraftNode agent key." }
+                    onStatus("CraftNode agent authorized. Refresh status to check its tunnel state.")
+                }.onFailure { onStatus("CraftNode agent claim failed: ${it.message ?: "unknown error"}") }
+            }
+            url
+        }.getOrElse {
+            onStatus("Could not start CraftNode agent claim: ${it.message ?: "unknown error"}")
+            null
         }
     }
 

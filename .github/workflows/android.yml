@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build:
-    name: Test and build CraftNode v1.0.20 APK
+    name: Test and build CraftNode v1.0.22 APK
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
