@@ -78,7 +78,8 @@ class NativePlayitController(context: Context, private val onStatus: (String) ->
         }
         return runCatching {
             val reply = request(JSONObject().put("type", "set_secret").put("secret", secret))
-            val data = reply.optJSONObject("response")?.optJSONObject("data")
+            val response = reply.optJSONObject("data")?.optJSONObject("response")
+            val data = response?.optJSONObject("data")
             val accepted = data?.optBoolean("accepted", false) == true
             onStatus(if (accepted) "Playit secret accepted by the daemon. Waiting for account/tunnel status." else "Playit did not accept the secret. Check the key and daemon logs.")
             accepted
@@ -90,7 +91,7 @@ class NativePlayitController(context: Context, private val onStatus: (String) ->
 
     fun status(): String = runCatching {
         val response = request(JSONObject().put("type", "get_state"))
-        val envelope = response.optJSONObject("response") ?: response
+        val envelope = response.optJSONObject("data")?.optJSONObject("response") ?: response
         val state = envelope.optJSONObject("data")
         val stateName = state?.optString("state", "unknown") ?: "unknown"
         val data = state?.optJSONObject("data")
