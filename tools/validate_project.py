@@ -91,11 +91,11 @@ def main() -> int:
     require("SERVER READY" in dashboard and "Server started." in dashboard and "PROCESS STARTED · WAITING" in dashboard,
             "dashboard distinguishes a running process from a server that finished booting")
     playit_doc = (ROOT / "docs/PLAYIT_ANDROID_COMPANION.md").read_text()
-    require("PLAYIT · EXPERIMENTAL COMPANION" in main_activity
+    require("PLAYIT · NATIVE BETA" in main_activity
             and "COPY TERMUX SETUP COMMANDS" in main_activity
-            and "not start a tunnel from CraftNode" in main_activity,
+            and "NativePlayitService.ACTION_START" in main_activity,
             "Remote screen clearly labels Playit as an external experimental companion")
-    require("not the same as launching them" in playit_doc
+    require("physical-device validation" in playit_doc
             and "real-device test" in playit_doc
             and "UDP" in playit_doc
             and "Native Playit runtime launched and supervised by CraftNode" in playit_doc,
@@ -104,6 +104,13 @@ def main() -> int:
             and 'FrpTunnelService.ACTION_START' in main_activity and '19132' in main_activity
             and 'COPY JOIN ADDRESS' in main_activity,
             "remote access screen can configure the FRP UDP tunnel and copy its join endpoint")
+    native_playit = (ROOT / "app/src/main/java/app/bedrockhost/mobile/multiplayer/NativePlayitController.kt").read_text()
+    native_playit_service = (ROOT / "app/src/main/java/app/bedrockhost/mobile/multiplayer/NativePlayitService.kt").read_text()
+    manifest = (ROOT / "app/src/main/AndroidManifest.xml").read_text()
+    require("libplayitd.so" in native_playit and "set_secret" in native_playit
+            and "get_state" in native_playit and "ACTION_STOP" in native_playit_service
+            and ".multiplayer.NativePlayitService" in manifest,
+            "Native Playit daemon lifecycle, IPC authorization/status, and foreground service are wired")
     tunnel_service = (ROOT / "app/src/main/java/app/bedrockhost/mobile/multiplayer/FrpTunnelService.kt").read_text()
     tunnel_controller = (ROOT / "app/src/main/java/app/bedrockhost/mobile/multiplayer/FrpUdpTunnelController.kt").read_text()
     tunnel_config = (ROOT / "app/src/main/java/app/bedrockhost/mobile/multiplayer/FrpUdpTunnelConfig.kt").read_text()
