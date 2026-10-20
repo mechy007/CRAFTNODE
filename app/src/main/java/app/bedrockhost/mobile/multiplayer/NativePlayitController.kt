@@ -151,9 +151,9 @@ class NativePlayitController(context: Context, private val onStatus: (String) ->
     }
 
     private fun extractClaimSecret(output: String): String? {
-        val labelPattern = Regex("""(?i)(?:agent[_ -]?secret|secret(?:[_ -]?key)?|agent[_ -]?key|token)\\s*[:=]\\s*["']?([^\\s"'"]{10,4096})""")
+        val labelPattern = Regex("""(?i)(?:agent[_ -]?secret|secret(?:[_ -]?key)?|agent[_ -]?key|token)\s*[:=]\s*["']?([^\s"']{10,4096})""")
         for (line in output.lineSequence().toList().asReversed()) {
-            val trimmed = line.trim().trim('"', '\\'')
+            val trimmed = line.trim().trim('"', '\'')
             val labelled = labelPattern.find(trimmed)?.groupValues?.getOrNull(1)
             val jsonValue = runCatching {
                 val obj = JSONObject(trimmed)
@@ -164,7 +164,7 @@ class NativePlayitController(context: Context, private val onStatus: (String) ->
                 it.length in 10..4096 && it.none(Char::isWhitespace) && !it.contains("://")
             }
             if (!candidate.isNullOrBlank() && candidate.length <= 4096 &&
-                candidate.none { it.isWhitespace() || it == '\\n' || it == '\\r' } &&
+                candidate.none(Char::isWhitespace) &&
                 !candidate.contains("://")) return candidate
         }
         return null
