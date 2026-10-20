@@ -30,9 +30,9 @@ class NativePlayitService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        startForeground(NOTIFICATION_ID, notification("Handling Playit request"))
         when (intent?.action) {
             ACTION_START -> {
-                startForeground(NOTIFICATION_ID, notification("Starting native Playit agent"))
                 val secret = intent.getStringExtra(EXTRA_SECRET)
                 val started = controller?.start(secret) == true
                 if (!started) {
