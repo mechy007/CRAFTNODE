@@ -327,51 +327,74 @@ private fun RemoteAccessPage() {
                     color = Muted, fontSize = 12.sp, lineHeight = 18.sp
                 )
                 Spacer(Modifier.height(10.dp))
-                var nativeSecret by remember { mutableStateOf("") }
-                var nativeStatus by remember { mutableStateOf("CraftNode Playit agent not created yet.") }
+                var nativeStatus by remember { mutableStateOf("Create a CraftNode agent to set up Playit automatically.") }
                 var nativeClaimUrl by remember { mutableStateOf("") }
                 var nativeAuthorized by remember { mutableStateOf(false) }
+                var nativeEndpoints by remember { mutableStateOf("") }
+                var nativeTunnelState by remember { mutableStateOf("unknown") }
                 androidx.compose.runtime.LaunchedEffect(Unit) {
                     while (true) {
                         val playitPrefs = context.getSharedPreferences(app.bedrockhost.mobile.multiplayer.NativePlayitService.PREFS, 0)
                         nativeStatus = playitPrefs.getString(app.bedrockhost.mobile.multiplayer.NativePlayitService.KEY_STATUS, nativeStatus) ?: nativeStatus
                         nativeClaimUrl = playitPrefs.getString(app.bedrockhost.mobile.multiplayer.NativePlayitService.KEY_CLAIM_URL, nativeClaimUrl) ?: nativeClaimUrl
                         nativeAuthorized = playitPrefs.getBoolean(app.bedrockhost.mobile.multiplayer.NativePlayitService.KEY_AUTHORIZED, false)
+                        nativeEndpoints = playitPrefs.getString(app.bedrockhost.mobile.multiplayer.NativePlayitService.KEY_ENDPOINTS, "") ?: ""
+                        nativeTunnelState = playitPrefs.getString(app.bedrockhost.mobile.multiplayer.NativePlayitService.KEY_TUNNEL_STATE, "unknown") ?: "unknown"
                         kotlinx.coroutines.delay(1500)
                     }
                 }
                 Text("NATIVE PLAYIT AGENT", color = Green, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
-                Text("Start the bundled Android ARM64 agent, then authorize it with a Playit secret key from your account setup page. The key stays in CraftNode's private app storage; never share it.", color = Muted, fontSize = 12.sp, lineHeight = 18.sp)
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(value = nativeSecret, onValueChange = { nativeSecret = it.take(4096) }, modifier = Modifier.fillMaxWidth(), singleLine = true, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(), placeholder = { Text("Playit secret key") }, label = { Text("Private agent key") })
+                Text("Create a Playit agent here, approve it in the browser, and CraftNode will receive and install the generated agent key automatically. You do not need to copy or paste a secret key. The key is handled by the app's private agent flow.", color = Muted, fontSize = 12.sp, lineHeight = 18.sp)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = {
-                        val intent = Intent(context, app.bedrockhost.mobile.multiplayer.NativePlayitService::class.java).setAction(app.bedrockhost.mobile.multiplayer.NativePlayitService.ACTION_START)
-                        if (nativeSecret.isNotBlank()) intent.putExtra(app.bedrockhost.mobile.multiplayer.NativePlayitService.EXTRA_SECRET, nativeSecret)
-                        ContextCompat.startForegroundService(context, intent)
-                        nativeStatus = "Start requested; waiting for native agent status."
-                    }, modifier = Modifier.weight(1f)) { Text("Start agent") }
                     OutlinedButton(onClick = {
                         ContextCompat.startForegroundService(context, Intent(context, app.bedrockhost.mobile.multiplayer.NativePlayitService::class.java).setAction(app.bedrockhost.mobile.multiplayer.NativePlayitService.ACTION_STATUS))
-                    }, modifier = Modifier.weight(1f)) { Text("Refresh status") }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = {
-                        if (nativeSecret.isBlank()) nativeStatus = "Paste your Playit secret key first."
-                        else {
-                            ContextCompat.startForegroundService(context, Intent(context, app.bedrockhost.mobile.multiplayer.NativePlayitService::class.java).setAction(app.bedrockhost.mobile.multiplayer.NativePlayitService.ACTION_PROVISION).putExtra(app.bedrockhost.mobile.multiplayer.NativePlayitService.EXTRA_SECRET, nativeSecret))
-                            nativeSecret = ""
-                            nativeStatus = "Authorization submitted; check the agent status."
-                        }
-                    }, modifier = Modifier.weight(1f)) { Text("Authorize") }
+                        nativeStatus = "Refreshing Playit tunnel state and endpoint…"
+                    }, modifier = Modifier.weight(1f)) { Text("Refresh tunnel") }
                     OutlinedButton(onClick = {
                         ContextCompat.startForegroundService(context, Intent(context, app.bedrockhost.mobile.multiplayer.NativePlayitService::class.java).setAction(app.bedrockhost.mobile.multiplayer.NativePlayitService.ACTION_STOP))
                         nativeStatus = "Stop requested."
                     }, modifier = Modifier.weight(1f)) { Text("Stop agent") }
                 }
-                Text(if (nativeAuthorized) "✓ VERIFIED · Agent authorization saved on this device" else nativeStatus,
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = {
+                        ContextCompat.startForegroundService(context, Intent(context, app.bedrockhost.mobile.multiplayer.NativePlayitService::class.java).setAction(app.bedrockhost.mobile.multiplayer.NativePlayitService.ACTION_FORGET_SECRET))
+                        nativeStatus = "Agent stopped and local authorization cleared."
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("FORGET PLAYIT AGENT ON THIS DEVICE") }
+                Text(if (nativeAuthorized) "✓ VERIFIED · Agent authorization accepted by Playit" else nativeStatus,
                     color = if (nativeAuthorized) Green else Green, fontSize = 11.sp, lineHeight = 16.sp)
+                Spacer(Modifier.height(8.dp))
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF100D17)),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().border(1.dp, Line, RoundedCornerShape(12.dp))
+                ) {
+                    Column(Modifier.padding(12.dp)) {
+                        Text("MINECRAFT SERVER ADDRESS", color = Green, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+                        Spacer(Modifier.height(5.dp))
+                        Text(
+                            if (nativeEndpoints.isBlank()) "No Playit endpoint received yet. Approve the agent, wait for a tunnel, then tap Refresh tunnel."
+                            else nativeEndpoints,
+                            color = TextMain, fontSize = 14.sp, fontWeight = FontWeight.Bold, lineHeight = 20.sp
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text("Tunnel state: $nativeTunnelState · Share only the address and port, never the agent key.", color = Muted, fontSize = 10.sp, lineHeight = 14.sp)
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedButton(
+                            onClick = {
+                                if (nativeEndpoints.isNotBlank()) {
+                                    clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(nativeEndpoints))
+                                    nativeStatus = "Playit address copied. Add it in Minecraft → Servers → Add Server."
+                                } else nativeStatus = "No public Playit address is available to copy yet."
+                            },
+                            enabled = nativeEndpoints.isNotBlank(),
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("COPY SERVER ADDRESS + PORT") }
+                    }
+                }
                 Spacer(Modifier.height(8.dp))
                 if (!nativeAuthorized) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
