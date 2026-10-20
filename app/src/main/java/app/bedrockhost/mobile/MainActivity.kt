@@ -318,7 +318,7 @@ private fun RemoteAccessPage() {
             modifier = Modifier.fillMaxWidth().border(1.dp, Color(0xFF49366D), RoundedCornerShape(16.dp))
         ) {
             Column(Modifier.padding(16.dp)) {
-                Text("PLAYIT · EXPERIMENTAL COMPANION", color = Green, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.1.sp)
+                Text("PLAYIT · NATIVE BETA", color = Green, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.1.sp)
                 Spacer(Modifier.height(8.dp))
                 Text("Free public tunnel option", color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(6.dp))
@@ -326,6 +326,46 @@ private fun RemoteAccessPage() {
                     "The v1.0.20 build now bundles the pinned official Playit Android ARM64 daemon and CLI as experimental native payloads. In-app launch, authorization, live endpoint reporting, and stop/status controls are not yet complete, so use the Termux companion workflow below for now. Keep the server on UDP 19132 and verify a real join from another network before relying on a tunnel.",
                     color = Muted, fontSize = 12.sp, lineHeight = 18.sp
                 )
+                Spacer(Modifier.height(10.dp))
+                var nativeSecret by remember { mutableStateOf("") }
+                var nativeStatus by remember { mutableStateOf("Native Playit agent not started.") }
+                androidx.compose.runtime.LaunchedEffect(Unit) {
+                    while (true) {
+                        nativeStatus = context.getSharedPreferences(app.bedrockhost.mobile.multiplayer.NativePlayitService.PREFS, 0).getString(app.bedrockhost.mobile.multiplayer.NativePlayitService.KEY_STATUS, nativeStatus) ?: nativeStatus
+                        kotlinx.coroutines.delay(1500)
+                    }
+                }
+                Text("NATIVE PLAYIT AGENT", color = Green, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+                Text("Start the bundled Android ARM64 agent, then authorize it with a Playit secret key from your account setup page. The key stays in CraftNode's private app storage; never share it.", color = Muted, fontSize = 12.sp, lineHeight = 18.sp)
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(value = nativeSecret, onValueChange = { nativeSecret = it.take(4096) }, modifier = Modifier.fillMaxWidth(), singleLine = true, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(), placeholder = { Text("Playit secret key") }, label = { Text("Private agent key") })
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = {
+                        val intent = Intent(context, app.bedrockhost.mobile.multiplayer.NativePlayitService::class.java).setAction(app.bedrockhost.mobile.multiplayer.NativePlayitService.ACTION_START)
+                        if (nativeSecret.isNotBlank()) intent.putExtra(app.bedrockhost.mobile.multiplayer.NativePlayitService.EXTRA_SECRET, nativeSecret)
+                        ContextCompat.startForegroundService(context, intent)
+                        nativeStatus = "Start requested; waiting for native agent status."
+                    }, modifier = Modifier.weight(1f)) { Text("Start agent") }
+                    OutlinedButton(onClick = {
+                        ContextCompat.startForegroundService(context, Intent(context, app.bedrockhost.mobile.multiplayer.NativePlayitService::class.java).setAction(app.bedrockhost.mobile.multiplayer.NativePlayitService.ACTION_STATUS))
+                    }, modifier = Modifier.weight(1f)) { Text("Refresh status") }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = {
+                        if (nativeSecret.isBlank()) nativeStatus = "Paste your Playit secret key first."
+                        else {
+                            ContextCompat.startForegroundService(context, Intent(context, app.bedrockhost.mobile.multiplayer.NativePlayitService::class.java).setAction(app.bedrockhost.mobile.multiplayer.NativePlayitService.ACTION_PROVISION).putExtra(app.bedrockhost.mobile.multiplayer.NativePlayitService.EXTRA_SECRET, nativeSecret))
+                            nativeSecret = ""
+                            nativeStatus = "Authorization submitted; check the agent status."
+                        }
+                    }, modifier = Modifier.weight(1f)) { Text("Authorize") }
+                    OutlinedButton(onClick = {
+                        ContextCompat.startForegroundService(context, Intent(context, app.bedrockhost.mobile.multiplayer.NativePlayitService::class.java).setAction(app.bedrockhost.mobile.multiplayer.NativePlayitService.ACTION_STOP))
+                        nativeStatus = "Stop requested."
+                    }, modifier = Modifier.weight(1f)) { Text("Stop agent") }
+                }
+                Text(nativeStatus, color = Green, fontSize = 11.sp, lineHeight = 16.sp)
                 Spacer(Modifier.height(10.dp))
                 OutlinedButton(
                     onClick = {

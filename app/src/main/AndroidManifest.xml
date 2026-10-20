@@ -30,6 +30,15 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="User-started outbound UDP tunnel for a locally hosted Minecraft server" />
         </service>
+        <service
+            android:name=".multiplayer.NativePlayitService"
+            android:exported="false"
+            android:stopWithTask="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="User-started native Playit agent supervision and outbound tunnel management" />
+        </service>
         <activity
             android:name=".MainActivity"
             android:exported="true">
