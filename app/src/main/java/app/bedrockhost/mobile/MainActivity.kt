@@ -330,11 +330,13 @@ private fun RemoteAccessPage() {
                 var nativeSecret by remember { mutableStateOf("") }
                 var nativeStatus by remember { mutableStateOf("CraftNode Playit agent not created yet.") }
                 var nativeClaimUrl by remember { mutableStateOf("") }
+                var nativeAuthorized by remember { mutableStateOf(false) }
                 androidx.compose.runtime.LaunchedEffect(Unit) {
                     while (true) {
                         val playitPrefs = context.getSharedPreferences(app.bedrockhost.mobile.multiplayer.NativePlayitService.PREFS, 0)
                         nativeStatus = playitPrefs.getString(app.bedrockhost.mobile.multiplayer.NativePlayitService.KEY_STATUS, nativeStatus) ?: nativeStatus
                         nativeClaimUrl = playitPrefs.getString(app.bedrockhost.mobile.multiplayer.NativePlayitService.KEY_CLAIM_URL, nativeClaimUrl) ?: nativeClaimUrl
+                        nativeAuthorized = playitPrefs.getBoolean(app.bedrockhost.mobile.multiplayer.NativePlayitService.KEY_AUTHORIZED, false)
                         kotlinx.coroutines.delay(1500)
                     }
                 }
@@ -368,8 +370,10 @@ private fun RemoteAccessPage() {
                         nativeStatus = "Stop requested."
                     }, modifier = Modifier.weight(1f)) { Text("Stop agent") }
                 }
-                Text(nativeStatus, color = Green, fontSize = 11.sp, lineHeight = 16.sp)
+                Text(if (nativeAuthorized) "✓ VERIFIED · Agent authorization saved on this device" else nativeStatus,
+                    color = if (nativeAuthorized) Green else Green, fontSize = 11.sp, lineHeight = 16.sp)
                 Spacer(Modifier.height(8.dp))
+                if (!nativeAuthorized) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
                         onClick = {
@@ -393,6 +397,7 @@ private fun RemoteAccessPage() {
                         modifier = Modifier.weight(1f),
                         enabled = nativeClaimUrl.startsWith("https://playit.gg/claim/")
                     ) { Text("Approve in browser") }
+                }
                 }
                 Spacer(Modifier.height(10.dp))
                 OutlinedButton(
