@@ -327,6 +327,46 @@ private fun RemoteAccessPage() {
                     color = Muted, fontSize = 12.sp, lineHeight = 18.sp
                 )
                 Spacer(Modifier.height(10.dp))
+                var nativeSecret by remember { mutableStateOf("") }
+                var nativeStatus by remember { mutableStateOf("Native Playit agent not started.") }
+                androidx.compose.runtime.LaunchedEffect(Unit) {
+                    while (true) {
+                        nativeStatus = context.getSharedPreferences(app.bedrockhost.mobile.multiplayer.NativePlayitService.PREFS, 0).getString(app.bedrockhost.mobile.multiplayer.NativePlayitService.KEY_STATUS, nativeStatus) ?: nativeStatus
+                        kotlinx.coroutines.delay(1500)
+                    }
+                }
+                Text("NATIVE PLAYIT AGENT", color = Green, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+                Text("Start the bundled Android ARM64 agent, then authorize it with a Playit secret key from your account setup page. The key stays in CraftNode's private app storage; never share it.", color = Muted, fontSize = 12.sp, lineHeight = 18.sp)
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(value = nativeSecret, onValueChange = { nativeSecret = it.take(4096) }, modifier = Modifier.fillMaxWidth(), singleLine = true, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(), placeholder = { Text("Playit secret key") }, label = { Text("Private agent key") })
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = {
+                        val intent = Intent(context, app.bedrockhost.mobile.multiplayer.NativePlayitService::class.java).setAction(app.bedrockhost.mobile.multiplayer.NativePlayitService.ACTION_START)
+                        if (nativeSecret.isNotBlank()) intent.putExtra(app.bedrockhost.mobile.multiplayer.NativePlayitService.EXTRA_SECRET, nativeSecret)
+                        ContextCompat.startForegroundService(context, intent)
+                        nativeStatus = "Start requested; waiting for native agent status."
+                    }, modifier = Modifier.weight(1f)) { Text("Start agent") }
+                    OutlinedButton(onClick = {
+                        ContextCompat.startForegroundService(context, Intent(context, app.bedrockhost.mobile.multiplayer.NativePlayitService::class.java).setAction(app.bedrockhost.mobile.multiplayer.NativePlayitService.ACTION_STATUS))
+                    }, modifier = Modifier.weight(1f)) { Text("Refresh status") }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = {
+                        if (nativeSecret.isBlank()) nativeStatus = "Paste your Playit secret key first."
+                        else {
+                            ContextCompat.startForegroundService(context, Intent(context, app.bedrockhost.mobile.multiplayer.NativePlayitService::class.java).setAction(app.bedrockhost.mobile.multiplayer.NativePlayitService.ACTION_PROVISION).putExtra(app.bedrockhost.mobile.multiplayer.NativePlayitService.EXTRA_SECRET, nativeSecret))
+                            nativeSecret = ""
+                            nativeStatus = "Authorization submitted; check the agent status."
+                        }
+                    }, modifier = Modifier.weight(1f)) { Text("Authorize") }
+                    OutlinedButton(onClick = {
+                        ContextCompat.startForegroundService(context, Intent(context, app.bedrockhost.mobile.multiplayer.NativePlayitService::class.java).setAction(app.bedrockhost.mobile.multiplayer.NativePlayitService.ACTION_STOP))
+                        nativeStatus = "Stop requested."
+                    }, modifier = Modifier.weight(1f)) { Text("Stop agent") }
+                }
+                Text(nativeStatus, color = Green, fontSize = 11.sp, lineHeight = 16.sp)
+                Spacer(Modifier.height(10.dp))
                 OutlinedButton(
                     onClick = {
                         val setup = "pkg update -y\npkg install tur-repo -y\npkg install playit -y\n# Start the daemon (keep this Termux session running):\nplayitd &\n# Then open the CLI setup in another Termux command:\nplayit-cli"
