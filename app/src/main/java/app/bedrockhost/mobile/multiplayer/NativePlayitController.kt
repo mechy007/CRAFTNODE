@@ -84,6 +84,7 @@ class NativePlayitController(context: Context, private val onStatus: (String) ->
             return null
         }
         return runCatching {
+            check(workDir.mkdirs() || workDir.isDirectory) { "Cannot create private Playit directory." }
             val codeProcess = ProcessBuilder(cli.absolutePath, "claim", "generate")
                 .directory(workDir).redirectErrorStream(true).start()
             val code = codeProcess.inputStream.bufferedReader().readText().trim().also {
@@ -105,7 +106,7 @@ class NativePlayitController(context: Context, private val onStatus: (String) ->
                         .directory(workDir).redirectErrorStream(true).start()
                     val output = exchange.inputStream.bufferedReader().readText().trim()
                     check(exchange.waitFor() == 0) { "Playit claim was not approved or timed out." }
-                    val secret = output.lineSequence().map(String::trim).lastOrNull { it.isNotBlank() }
+                    val secret = output.lineSequence().map { it.trim() }.lastOrNull { it.isNotBlank() }
                         ?: error("Playit returned an empty agent key.")
                     check(secret.length <= 4096 && !secret.contains(" ") && !secret.contains("://")) {
                         "Playit CLI returned an unexpected claim response."
