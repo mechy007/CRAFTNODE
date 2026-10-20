@@ -318,7 +318,7 @@ private fun RemoteAccessPage() {
             modifier = Modifier.fillMaxWidth().border(1.dp, Color(0xFF49366D), RoundedCornerShape(16.dp))
         ) {
             Column(Modifier.padding(16.dp)) {
-                Text("PLAYIT · EXPERIMENTAL COMPANION", color = Green, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.1.sp)
+                Text("PLAYIT · NATIVE BETA", color = Green, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.1.sp)
                 Spacer(Modifier.height(8.dp))
                 Text("Free public tunnel option", color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(6.dp))
