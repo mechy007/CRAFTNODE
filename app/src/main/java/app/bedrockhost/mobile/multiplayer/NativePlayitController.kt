@@ -106,14 +106,12 @@ class NativePlayitController(context: Context, private val onStatus: (String) ->
                         .directory(workDir).redirectErrorStream(true).start()
                     val output = exchange.inputStream.bufferedReader().readText().trim()
                     check(exchange.waitFor() == 0) { "Playit claim was not approved or timed out." }
-                    val secret = output.lineSequence().map { it.trim() }.lastOrNull { it.isNotBlank() }
-                        ?: error("Playit returned an empty agent key.")
-                    check(secret.length <= 4096 && !secret.contains(" ") && !secret.contains("://")) {
-                        "Playit CLI returned an unexpected claim response."
-                    }
+                    val secret = extractClaimSecret(output)
+                        ?: error("Playit claim completed, but no agent secret could be read from its response.")
                     check(start()) { "Could not start the CraftNode Playit daemon." }
-                    check(provisionSecret(secret)) { "Playit did not accept the new CraftNode agent key." }
-                    onStatus("CraftNode agent authorized. Refresh status to check its tunnel state.")
+                    // The daemon may need a moment to create its private IPC socket after launch.
+                    check(provisionSecretWhenReady(secret)) { "CraftNode could not install the generated Playit agent key." }
+                    onStatus("CraftNode agent authorized automatically. Refresh status to discover its public tunnel.")
                 }.onFailure { onStatus("CraftNode agent claim failed: ${it.message ?: "unknown error"}") }
             }
             url
@@ -125,7 +123,7 @@ class NativePlayitController(context: Context, private val onStatus: (String) ->
 
     fun provisionSecret(secret: String): Boolean {
         if (secret.isBlank() || secret.length > 4096 || secret.any { it == '\n' || it == '\r' }) {
-            onStatus("Playit secret was rejected. Paste the secret key exactly as provided.")
+            onStatus("Playit secret was rejected because its format was invalid.")
             return false
         }
         return runCatching {
@@ -135,12 +133,41 @@ class NativePlayitController(context: Context, private val onStatus: (String) ->
             val accepted = data?.optBoolean("accepted", false) == true
             app.getSharedPreferences(NativePlayitService.PREFS, 0).edit()
                 .putBoolean(NativePlayitService.KEY_AUTHORIZED, accepted).apply()
-            onStatus(if (accepted) "CraftNode agent verified. Checking tunnel readiness…" else "Playit did not accept the secret. Check the key and daemon logs.")
+            onStatus(if (accepted) "CraftNode agent verified. Checking tunnel readiness…" else "Playit did not accept the generated agent key. Check daemon status.")
             accepted
         }.getOrElse {
-            onStatus("Playit daemon is not ready to accept authorization yet.")
+            onStatus("Playit daemon IPC is not ready. Refresh status or restart the agent.")
             false
         }
+    }
+
+    private fun provisionSecretWhenReady(secret: String): Boolean {
+        repeat(12) { attempt ->
+            val accepted = runCatching { provisionSecret(secret) }.getOrDefault(false)
+            if (accepted) return true
+            if (attempt < 11) Thread.sleep(500)
+        }
+        return false
+    }
+
+    private fun extractClaimSecret(output: String): String? {
+        val labelPattern = Regex("""(?i)(?:agent[_ -]?secret|secret(?:[_ -]?key)?|agent[_ -]?key|token)\\s*[:=]\\s*["']?([^\\s"'"]{10,4096})""")
+        for (line in output.lineSequence().toList().asReversed()) {
+            val trimmed = line.trim().trim('"', '\\'')
+            val labelled = labelPattern.find(trimmed)?.groupValues?.getOrNull(1)
+            val jsonValue = runCatching {
+                val obj = JSONObject(trimmed)
+                listOf("secret", "agent_secret", "agentSecret", "secret_key", "secretKey", "key", "token")
+                    .firstNotNullOfOrNull { key -> obj.optString(key).takeIf { it.isNotBlank() && it != "null" } }
+            }.getOrNull()
+            val candidate = jsonValue ?: labelled ?: trimmed.takeIf {
+                it.length in 10..4096 && it.none(Char::isWhitespace) && !it.contains("://")
+            }
+            if (!candidate.isNullOrBlank() && candidate.length <= 4096 &&
+                candidate.none { it.isWhitespace() || it == '\\n' || it == '\\r' } &&
+                !candidate.contains("://")) return candidate
+        }
+        return null
     }
 
     fun status(): String = runCatching {
