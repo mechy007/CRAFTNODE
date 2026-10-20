@@ -133,7 +133,9 @@ class NativePlayitController(context: Context, private val onStatus: (String) ->
             val response = reply.optJSONObject("data")?.optJSONObject("response")
             val data = response?.optJSONObject("data")
             val accepted = data?.optBoolean("accepted", false) == true
-            onStatus(if (accepted) "Playit secret accepted by the daemon. Waiting for account/tunnel status." else "Playit did not accept the secret. Check the key and daemon logs.")
+            app.getSharedPreferences(NativePlayitService.PREFS, 0).edit()
+                .putBoolean(NativePlayitService.KEY_AUTHORIZED, accepted).apply()
+            onStatus(if (accepted) "CraftNode agent verified. Checking tunnel readiness…" else "Playit did not accept the secret. Check the key and daemon logs.")
             accepted
         }.getOrElse {
             onStatus("Playit daemon is not ready to accept authorization yet.")
