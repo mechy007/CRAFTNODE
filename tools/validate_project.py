@@ -92,11 +92,12 @@ def main() -> int:
             "dashboard distinguishes a running process from a server that finished booting")
     playit_doc = (ROOT / "docs/PLAYIT_ANDROID_COMPANION.md").read_text()
     require("Create CraftNode agent" in main_activity
-            and "Approve in browser" in main_activity
             and "PLAYIT · NATIVE BETA" in main_activity
-            and "COPY TERMUX SETUP COMMANDS" in main_activity
-            and "NativePlayitService.ACTION_START" in main_activity,
-            "Remote screen clearly labels Playit as an external experimental companion")
+            and "Refresh tunnel" in main_activity
+            and "COPY SERVER ADDRESS + PORT" in main_activity
+            and "NativePlayitService.ACTION_CLAIM" in main_activity
+            and "generated agent key automatically" in main_activity,
+            "Playit screen supports automatic agent-key provisioning and copyable tunnel endpoint")
     require("physical-device validation" in playit_doc
             and "successful remote Bedrock join" in playit_doc
             and "UDP" in playit_doc
