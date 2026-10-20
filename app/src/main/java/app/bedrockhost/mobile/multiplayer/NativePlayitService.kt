@@ -58,13 +58,22 @@ class NativePlayitService : Service() {
             }
             ACTION_STOP -> {
                 controller?.stop()
+                getSharedPreferences(PREFS, 0).edit()
+                    .putString(KEY_ENDPOINTS, "")
+                    .putString(KEY_TUNNEL_STATE, "stopped")
+                    .apply()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf(startId)
             }
             ACTION_FORGET_SECRET -> {
                 controller?.stop()
                 controller?.forgetSecret()
-                getSharedPreferences(PREFS, 0).edit().putBoolean(KEY_AUTHORIZED, false).remove(KEY_CLAIM_URL).apply()
+                getSharedPreferences(PREFS, 0).edit()
+                    .putBoolean(KEY_AUTHORIZED, false)
+                    .putString(KEY_ENDPOINTS, "")
+                    .putString(KEY_TUNNEL_STATE, "stopped")
+                    .remove(KEY_CLAIM_URL)
+                    .apply()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf(startId)
             }
