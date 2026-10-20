@@ -96,10 +96,10 @@ def main() -> int:
             and "NativePlayitService.ACTION_START" in main_activity,
             "Remote screen clearly labels Playit as an external experimental companion")
     require("physical-device validation" in playit_doc
-            and "real-device test" in playit_doc
+            and "successful remote Bedrock join" in playit_doc
             and "UDP" in playit_doc
-            and "foreground service" in playit_doc,
-            "Playit guide records honest integration status and required remote UDP validation")
+            and "Termux fallback" in playit_doc,
+            "Playit guide records device-test requirements and fallback path")
     require('private fun RemoteAccessPage()' in main_activity and 'START REMOTE TUNNEL' in main_activity
             and 'FrpTunnelService.ACTION_START' in main_activity and '19132' in main_activity
             and 'COPY JOIN ADDRESS' in main_activity,
