@@ -52,7 +52,7 @@ fun LocalHostDashboard(onOpenConsole: () -> Unit) {
     var seed by remember { mutableStateOf("") }
     var cheats by remember { mutableStateOf(false) }
     var setupConfirmed by remember { mutableStateOf(false) }
-    var activeProfileId by remember { mutableStateOf("survival") }
+    var activeProfileId by remember { mutableStateOf(context.getSharedPreferences("craftnode_settings", Context.MODE_PRIVATE).getString("host_profile_id", "survival") ?: "survival") }
 
     fun refresh() {
         logs = runCatching {
@@ -121,6 +121,7 @@ fun LocalHostDashboard(onOpenConsole: () -> Unit) {
 
             context.getSharedPreferences("craftnode_settings", Context.MODE_PRIVATE).edit()
                 .putString("host_world_name", cleanName)
+                .putString("host_profile_id", profileId)
                 .putString("host_game_mode", gameMode)
                 .putString("host_difficulty", difficulty)
                 .putString("host_seed", cleanSeed)
