@@ -74,16 +74,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private val Background = Color(0xFF14101C)
-private val Panel = Color(0xFF1D1829)
-private val Line = Color(0xFF332A46)
-private val TextMain = Color(0xFFF1EDF8)
-private val Muted = Color(0xFFA39AB7)
-private val Purple = Color(0xFF7C5CFF)
-private val Green = Color(0xFF4ADE80)
-private val TileBlue = Color(0xFF3A6EA5)
-private val TileOrange = Color(0xFFA5703A)
-private val TilePink = Color(0xFFC05CFF)
+// NetherCore-inspired obsidian palette with Minecraft inventory-slot edges.
+private val Background = Color(0xFF07090E)
+private val Panel = Color(0xFF111622)
+private val Line = Color(0xFF26334A)
+private val TextMain = Color(0xFFE8EEF8)
+private val Muted = Color(0xFF91A0B7)
+private val Purple = Color(0xFF10B981)
+private val Green = Color(0xFF34D399)
+private val TileBlue = Color(0xFF06B6D4)
+private val TileOrange = Color(0xFFF59E0B)
+private val TilePink = Color(0xFFA855F7)
+private val ObsidianRaised = Color(0xFF161C2B)
+private val Redstone = Color(0xFFEF4444)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -140,29 +143,42 @@ private fun CraftNodeApp() {
     Surface(Modifier.fillMaxSize(), color = Background) {
         Column(
             Modifier.fillMaxSize().background(
-                Brush.verticalGradient(listOf(Color(0xFF211832), Background, Background))
+                Brush.verticalGradient(listOf(Color(0xFF0C201B), Background, Background))
             )
         ) {
             Row(
-                Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 18.dp, bottom = 14.dp),
+                Modifier.fillMaxWidth()
+                    .background(Color(0xFF0C0F17))
+                    .border(width = 1.dp, color = Line)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.craftnode_mark),
-                    contentDescription = "CraftNode logo",
-                    modifier = Modifier.size(42.dp).clip(RoundedCornerShape(12.dp))
-                )
+                Box(
+                    Modifier.size(42.dp).clip(RoundedCornerShape(10.dp))
+                        .background(Brush.linearGradient(listOf(Green, Color(0xFF047857))))
+                        .border(2.dp, Color(0xFF6EE7B7), RoundedCornerShape(10.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.craftnode_mark),
+                        contentDescription = "CraftNode logo",
+                        modifier = Modifier.size(32.dp).clip(RoundedCornerShape(7.dp))
+                    )
+                }
                 Column(Modifier.weight(1f).padding(start = 11.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Craft", color = TextMain, fontSize = 22.sp, fontWeight = FontWeight.Black)
-                        Text("Node", color = Green, fontSize = 22.sp, fontWeight = FontWeight.Black)
+                        Text("CRAFT", color = TextMain, fontSize = 19.sp, fontWeight = FontWeight.Black, letterSpacing = 0.8.sp)
+                        Text("NODE", color = Green, fontSize = 19.sp, fontWeight = FontWeight.Black, letterSpacing = 0.8.sp)
                     }
-                    Text("MINECRAFT SERVER LAUNCHER", color = Green, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.15.sp)
+                    Text("BEDROCK CONTROL CENTER", color = Muted, fontSize = 8.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.25.sp)
                 }
-                Box(
-                    Modifier.clip(CircleShape).background(Panel).border(1.dp, Line, CircleShape).padding(horizontal = 11.dp, vertical = 8.dp)
-                ) {
-                    Text("BEDROCK", color = Muted, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Column(horizontalAlignment = Alignment.End) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(7.dp).clip(CircleShape).background(if (serverRunning) Green else Redstone))
+                        Spacer(Modifier.width(5.dp))
+                        Text(if (serverRunning) "ONLINE PROCESS" else "OFFLINE", color = if (serverRunning) Green else Muted, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                    }
+                    Text("v1.0.25", color = Muted, fontSize = 9.sp)
                 }
             }
 
@@ -238,11 +254,11 @@ private fun CraftNodeApp() {
             }
 
             NavigationBar(
-                containerColor = Panel,
+                containerColor = Color(0xFF0C0F17),
                 contentColor = TextMain,
                 windowInsets = WindowInsets.navigationBars
             ) {
-                listOf(Page.Play, Page.Host, Page.Settings).forEach { item ->
+                listOf(Page.Play, Page.Worlds, Page.Console, Page.Settings).forEach { item ->
                     NavigationBarItem(
                         selected = page == item,
                         onClick = { page = item },
@@ -260,11 +276,11 @@ private fun CraftNodeApp() {
                                 contentDescription = item.label
                             )
                         },
-                        label = { Text(item.label, fontSize = 10.sp) },
+                        label = { Text(item.label, fontSize = 10.sp, fontWeight = FontWeight.SemiBold) },
                         colors = androidx.compose.material3.NavigationBarItemDefaults.colors(
-                            selectedIconColor = Color.White,
-                            selectedTextColor = Color.White,
-                            indicatorColor = Purple,
+                            selectedIconColor = Color(0xFF04120D),
+                            selectedTextColor = Green,
+                            indicatorColor = Green,
                             unselectedIconColor = Muted,
                             unselectedTextColor = Muted
                         )
@@ -554,35 +570,61 @@ private fun PlayPage(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, bottom = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatusPill("SERVER STATUS", if (serverRunning) "PROCESS RUNNING" else "OFFLINE", if (serverRunning) Green else Muted)
-                StatusPill("PLAYERS", "NOT REPORTED", Muted)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("YOUR SERVER", color = Green, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp)
+                    Text("Control room", color = TextMain, fontSize = 27.sp, fontWeight = FontWeight.Black)
+                }
+                Box(
+                    Modifier.clip(RoundedCornerShape(8.dp)).background(ObsidianRaised)
+                        .border(1.dp, Line, RoundedCornerShape(8.dp)).padding(horizontal = 10.dp, vertical = 7.dp)
+                ) {
+                    Text("BEDROCK", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+                }
             }
         }
         item {
-            HeroCard(selectedProfile, onSelectProfile, onStart, notice, serverRunning)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                StatusPill("PROCESS", if (serverRunning) "RUNNING" else "STOPPED", if (serverRunning) Green else Redstone, Modifier.weight(1f))
+                StatusPill("PLAYERS", "NOT REPORTED", Muted, Modifier.weight(1f))
+            }
         }
+        item { HeroCard(selectedProfile, onSelectProfile, onStart, notice, serverRunning) }
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("QUICK ACCESS", color = Green, fontSize = 11.sp, fontWeight = FontWeight.Black, letterSpacing = 1.8.sp)
+                Text("SERVER TOOLS", color = TextMain, fontSize = 12.sp, fontWeight = FontWeight.Black, letterSpacing = 1.4.sp)
                 Spacer(Modifier.weight(1f))
-                Text("SERVER TOOLS", color = Muted, fontSize = 9.sp, letterSpacing = 1.sp)
+                Text("QUICK ACCESS", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
             }
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                ToolCard(Icons.Default.Terminal, "Console", "Real server logs", Purple, Modifier.weight(1f)) { onOpen(Page.Console) }
-                ToolCard(Icons.Default.Cloud, "Remote access", "Private VPN setup", TileBlue, Modifier.weight(1f)) { onOpen(Page.Remote) }
+                ToolCard(Icons.Default.Gamepad, "Configure", "World & server rules", Green, Modifier.weight(1f)) { onOpen(Page.Host) }
+                ToolCard(Icons.Default.Terminal, "Console", "Live process logs", TileBlue, Modifier.weight(1f)) { onOpen(Page.Console) }
             }
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                ToolCard(Icons.Default.Folder, "Worlds", "Profiles and backups", TileOrange, Modifier.weight(1f)) { onOpen(Page.Worlds) }
-                ToolCard(Icons.Default.Groups, "Players", "Commands and access", TilePink, Modifier.weight(1f)) { onOpen(Page.Players) }
+                ToolCard(Icons.Default.Folder, "Worlds", "Profiles & backups", TileOrange, Modifier.weight(1f)) { onOpen(Page.Worlds) }
+                ToolCard(Icons.Default.Groups, "Players", "Access management", TilePink, Modifier.weight(1f)) { onOpen(Page.Players) }
+            }
+        }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                ToolCard(Icons.Default.Cloud, "Remote access", "Tunnel setup", TileBlue, Modifier.weight(1f)) { onOpen(Page.Remote) }
+                ToolCard(Icons.Default.Settings, "Engine setup", "Runtime & version", Muted, Modifier.weight(1f)) { onOpen(Page.Settings) }
+            }
+        }
+        item {
+            Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(9.dp),
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFF171A21)).border(1.dp, Line, RoundedCornerShape(12.dp)).padding(12.dp)) {
+                Text("i", color = TileBlue, fontSize = 17.sp, fontWeight = FontWeight.Black)
+                Text("Process status confirms that the server process launched; it does not guarantee that friends can connect. Verify the console and test joining on another device.", color = Muted, fontSize = 10.sp, lineHeight = 15.sp)
             }
         }
     }
@@ -597,14 +639,14 @@ private fun HeroCard(
     serverRunning: Boolean
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth().border(1.dp, Color(0xFF49366D), RoundedCornerShape(20.dp)),
-        shape = RoundedCornerShape(20.dp),
+        modifier = Modifier.fillMaxWidth().border(1.dp, if (serverRunning) Color(0xFF16845D) else Line, RoundedCornerShape(18.dp)),
+        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = Panel)
     ) {
         Box {
-            Canvas(Modifier.fillMaxWidth().height(230.dp)) {
-                val tile = 32.dp.toPx()
-                val colors = listOf(Color(0xFF352653), Color(0xFF29203D))
+            Canvas(Modifier.fillMaxWidth().height(265.dp)) {
+                val tile = 24.dp.toPx()
+                val colors = listOf(Color(0xFF172D2A), Color(0xFF111E22))
                 var y = 0f
                 var row = 0
                 while (y < size.height) {
@@ -619,23 +661,23 @@ private fun HeroCard(
                     row++
                 }
                 drawRect(
-                    brush = Brush.horizontalGradient(listOf(Background.copy(alpha = 0.98f), Background.copy(alpha = 0.76f), Background.copy(alpha = 0.25f))),
+                    brush = Brush.horizontalGradient(listOf(Background.copy(alpha = 0.97f), Background.copy(alpha = 0.80f), Background.copy(alpha = 0.18f))),
                     size = size
                 )
-                drawRect(
-                    brush = Brush.verticalGradient(listOf(Color.Transparent, Panel.copy(alpha = 0.95f))),
-                    size = size
-                )
+                drawRect(brush = Brush.verticalGradient(listOf(Color.Transparent, Panel.copy(alpha = 0.98f))), size = size)
             }
-            Column(Modifier.fillMaxWidth().padding(20.dp)) {
+            Column(Modifier.fillMaxWidth().padding(18.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(7.dp).clip(CircleShape).background(Green))
-                    Text("  LOCAL SERVER", color = Green, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+                    Box(Modifier.size(8.dp).clip(CircleShape).background(if (serverRunning) Green else Redstone))
+                    Spacer(Modifier.width(7.dp))
+                    Text(if (serverRunning) "SERVER PROCESS ACTIVE" else "LOCAL WORLD • READY TO HOST", color = if (serverRunning) Green else Muted, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 1.1.sp)
+                    Spacer(Modifier.weight(1f))
+                    Text("●", color = if (serverRunning) Green else Muted, fontSize = 10.sp)
                 }
-                Spacer(Modifier.height(26.dp))
-                Text(selectedProfile.uppercase(), color = TextMain, fontSize = 31.sp, fontWeight = FontWeight.Black, lineHeight = 35.sp)
-                Text("Your world. Your server. Your rules.", color = Muted, fontSize = 13.sp, lineHeight = 19.sp)
-                Spacer(Modifier.height(17.dp))
+                Spacer(Modifier.height(23.dp))
+                Text(selectedProfile.uppercase(), color = TextMain, fontSize = 27.sp, fontWeight = FontWeight.Black, lineHeight = 32.sp, letterSpacing = 0.4.sp)
+                Text("Your world. Your server. Your rules.", color = Muted, fontSize = 12.sp, lineHeight = 18.sp)
+                Spacer(Modifier.height(15.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     OutlinedButton(
                         onClick = {
@@ -646,43 +688,49 @@ private fun HeroCard(
                             }
                             onSelectProfile(next)
                         },
-                        shape = RoundedCornerShape(11.dp),
+                        shape = RoundedCornerShape(9.dp),
                         border = androidx.compose.foundation.BorderStroke(1.dp, Line),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextMain)
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextMain),
+                        modifier = Modifier.weight(1f)
                     ) {
-                        Icon(Icons.Default.Folder, contentDescription = null, modifier = Modifier.size(17.dp))
-                        Spacer(Modifier.width(7.dp))
-                        Text("Select profile", fontSize = 12.sp)
+                        Icon(Icons.Default.Folder, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Switch world", fontSize = 11.sp)
+                    }
+                    Button(
+                        onClick = onStart,
+                        modifier = Modifier.weight(1.25f).height(44.dp),
+                        shape = RoundedCornerShape(9.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = if (serverRunning) Redstone else Green, contentColor = Color(0xFF06110D))
+                    ) {
+                        Icon(Icons.Default.Gamepad, contentDescription = null, modifier = Modifier.size(17.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(if (serverRunning) "STOP SERVER" else "START SERVER", fontWeight = FontWeight.Black, fontSize = 11.sp, letterSpacing = 0.2.sp)
                     }
                 }
-                Spacer(Modifier.height(10.dp))
-                Button(
-                    onClick = onStart,
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = if (serverRunning) Color(0xFFB93855) else Purple, contentColor = Color.White)
-                ) {
-                    Icon(Icons.Default.Gamepad, contentDescription = null)
-                    Spacer(Modifier.width(9.dp))
-                    Text(if (serverRunning) "STOP SERVER" else "START SERVER", fontWeight = FontWeight.Black, letterSpacing = 0.8.sp)
+                Spacer(Modifier.height(12.dp))
+                Row(verticalAlignment = Alignment.Top) {
+                    Box(Modifier.width(3.dp).height(28.dp).clip(RoundedCornerShape(2.dp)).background(Green))
+                    Text(notice, color = Muted, fontSize = 10.sp, lineHeight = 14.sp, modifier = Modifier.padding(start = 8.dp))
                 }
-                Spacer(Modifier.height(8.dp))
-                Text("ENGINE: SELECTED IN SETTINGS", color = Muted, fontSize = 9.sp, letterSpacing = 0.7.sp)
-                Spacer(Modifier.height(8.dp))
-                Text(notice, color = Green, fontSize = 11.sp, lineHeight = 15.sp)
             }
         }
     }
 }
 
 @Composable
-private fun StatusPill(label: String, value: String, valueColor: Color) {
+private fun StatusPill(label: String, value: String, valueColor: Color, modifier: Modifier = Modifier) {
     Row(
-        Modifier.clip(CircleShape).background(Panel).border(1.dp, Line, CircleShape).padding(horizontal = 12.dp, vertical = 9.dp),
+        modifier.clip(RoundedCornerShape(10.dp)).background(Panel)
+            .border(1.dp, Line, RoundedCornerShape(10.dp)).padding(horizontal = 10.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("$label  ", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-        Text(value, color = valueColor, fontSize = 10.sp, fontWeight = FontWeight.Black)
+        Column(Modifier.weight(1f)) {
+            Text(label, color = Muted, fontSize = 8.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+            Spacer(Modifier.height(4.dp))
+            Text(value, color = valueColor, fontSize = 10.sp, fontWeight = FontWeight.Black)
+        }
+        Box(Modifier.size(6.dp).clip(CircleShape).background(valueColor))
     }
 }
 
@@ -696,17 +744,26 @@ private fun ToolCard(
     onClick: () -> Unit
 ) {
     Card(
-        modifier = modifier.height(112.dp).clickable(onClick = onClick).border(1.dp, Line, RoundedCornerShape(15.dp)),
-        shape = RoundedCornerShape(15.dp),
+        modifier = modifier.height(105.dp).clickable(onClick = onClick)
+            .border(1.dp, Line, RoundedCornerShape(13.dp)),
+        shape = RoundedCornerShape(13.dp),
         colors = CardDefaults.cardColors(containerColor = Panel)
     ) {
-        Column(Modifier.fillMaxSize().padding(13.dp), verticalArrangement = Arrangement.SpaceBetween) {
-            Box(Modifier.size(31.dp).clip(RoundedCornerShape(9.dp)).background(accent.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
-                Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(19.dp))
+        Column(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.SpaceBetween) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(32.dp).clip(RoundedCornerShape(8.dp))
+                    .background(accent.copy(alpha = 0.13f))
+                    .border(1.dp, accent.copy(alpha = 0.32f), RoundedCornerShape(8.dp)),
+                    contentAlignment = Alignment.Center) {
+                    Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(18.dp))
+                }
+                Spacer(Modifier.weight(1f))
+                Text("↗", color = Muted, fontSize = 15.sp, fontWeight = FontWeight.Bold)
             }
             Column {
-                Text(title, color = TextMain, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                Text(subtitle, color = Muted, fontSize = 10.sp)
+                Text(title, color = TextMain, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(2.dp))
+                Text(subtitle, color = Muted, fontSize = 9.sp, maxLines = 1)
             }
         }
     }
