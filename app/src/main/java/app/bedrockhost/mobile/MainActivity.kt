@@ -558,57 +558,165 @@ private fun PlayPage(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 24.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("YOUR SERVER", color = Green, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp)
-                    Text("Control room", color = TextMain, fontSize = 27.sp, fontWeight = FontWeight.Black)
+                    Text("CRAFTNODE / CONTROL CENTER", color = Green, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 1.5.sp)
+                    Text("Server overview", color = TextMain, fontSize = 28.sp, fontWeight = FontWeight.Black, letterSpacing = (-0.5).sp)
+                    Text("Everything for your Bedrock world, in one place.", color = Muted, fontSize = 12.sp)
                 }
                 Box(
-                    Modifier.clip(RoundedCornerShape(8.dp)).background(ObsidianRaised)
-                        .border(1.dp, Line, RoundedCornerShape(8.dp)).padding(horizontal = 10.dp, vertical = 7.dp)
+                    Modifier.size(46.dp).clip(RoundedCornerShape(14.dp))
+                        .background(Brush.linearGradient(listOf(Color(0xFF164E3D), Color(0xFF0D2420))))
+                        .border(1.dp, Color(0xFF27765B), RoundedCornerShape(14.dp)),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text("BEDROCK", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+                    Image(painter = painterResource(id = R.drawable.craftnode_mark), contentDescription = "CraftNode", modifier = Modifier.size(35.dp))
                 }
             }
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatusPill("PROCESS", if (serverRunning) "RUNNING" else "STOPPED", if (serverRunning) Green else Redstone, Modifier.weight(1f))
-                StatusPill("PLAYERS", "NOT REPORTED", Muted, Modifier.weight(1f))
+                OverviewMetric(
+                    label = "SERVER PROCESS",
+                    value = if (serverRunning) "RUNNING" else "STOPPED",
+                    detail = if (serverRunning) "Process launch detected" else "Not currently running",
+                    accent = if (serverRunning) Green else Redstone,
+                    modifier = Modifier.weight(1f)
+                )
+                OverviewMetric(
+                    label = "ONLINE PLAYERS",
+                    value = "—",
+                    detail = "Not reported by engine",
+                    accent = TileBlue,
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
-        item { HeroCard(selectedProfile, onSelectProfile, onStart, notice, serverRunning) }
+        item {
+            HeroCard(selectedProfile, onSelectProfile, onStart, notice, serverRunning)
+        }
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("SERVER TOOLS", color = TextMain, fontSize = 12.sp, fontWeight = FontWeight.Black, letterSpacing = 1.4.sp)
-                Spacer(Modifier.weight(1f))
-                Text("QUICK ACCESS", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp)
+                Column(Modifier.weight(1f)) {
+                    Text("MANAGE YOUR SERVER", color = TextMain, fontSize = 13.sp, fontWeight = FontWeight.Black, letterSpacing = 0.7.sp)
+                    Text("Jump straight to a control panel", color = Muted, fontSize = 11.sp)
+                }
+                Box(Modifier.clip(RoundedCornerShape(7.dp)).background(ObsidianRaised).padding(horizontal = 8.dp, vertical = 5.dp)) {
+                    Text("TOOLS", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+                }
             }
         }
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                ToolCard(Icons.Default.Terminal, "Console", "Server logs", TileBlue, Modifier.weight(1f)) { onOpen(Page.Console) }
-                ToolCard(Icons.Default.Folder, "Worlds", "Switch & manage worlds", TileOrange, Modifier.weight(1f)) { onOpen(Page.Worlds) }
-            }
+            DashboardTool(
+                icon = Icons.Default.Terminal,
+                title = "Live console",
+                subtitle = "Inspect logs and server messages",
+                accent = TileBlue,
+                onClick = { onOpen(Page.Console) }
+            )
         }
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                ToolCard(Icons.Default.Cloud, "Remote access", "Tunnel setup", TileBlue, Modifier.weight(1f)) { onOpen(Page.Remote) }
-                ToolCard(Icons.Default.Settings, "Engine setup", "Runtime & version", Muted, Modifier.weight(1f)) { onOpen(Page.Settings) }
-            }
+            DashboardTool(
+                icon = Icons.Default.Folder,
+                title = "World manager",
+                subtitle = "Choose a profile and manage world files",
+                accent = TileOrange,
+                onClick = { onOpen(Page.Worlds) }
+            )
         }
         item {
-            Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(9.dp),
+            DashboardTool(
+                icon = Icons.Default.Cloud,
+                title = "Remote access",
+                subtitle = "Playit tunnel and connection diagnostics",
+                accent = TileBlue,
+                onClick = { onOpen(Page.Remote) }
+            )
+        }
+        item {
+            DashboardTool(
+                icon = Icons.Default.Settings,
+                title = "Engine & versions",
+                subtitle = "Runtime installation and server engine options",
+                accent = Muted,
+                onClick = { onOpen(Page.Settings) }
+            )
+        }
+        item {
+            Row(
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFF171A21)).border(1.dp, Line, RoundedCornerShape(12.dp)).padding(12.dp)) {
-                Text("i", color = TileBlue, fontSize = 17.sp, fontWeight = FontWeight.Black)
-                Text("Process status confirms that the server process launched; it does not guarantee that friends can connect. Verify the console and test joining on another device.", color = Muted, fontSize = 10.sp, lineHeight = 15.sp)
+                    .background(Color(0xFF171A21)).border(1.dp, Line, RoundedCornerShape(12.dp)).padding(12.dp)
+            ) {
+                Icon(Icons.Default.Info, contentDescription = null, tint = TileBlue, modifier = Modifier.size(17.dp))
+                Column {
+                    Text("HONEST STATUS", color = TextMain, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 0.8.sp)
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        "A running process does not guarantee that Minecraft clients can connect. Player counts and network reachability stay unconfirmed until the engine or tunnel reports verified data.",
+                        color = Muted, fontSize = 10.sp, lineHeight = 15.sp
+                    )
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun OverviewMetric(
+    label: String,
+    value: String,
+    detail: String,
+    accent: Color,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.border(1.dp, Line, RoundedCornerShape(14.dp)),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = Panel)
+    ) {
+        Column(Modifier.fillMaxWidth().padding(12.dp)) {
+            Text(label, color = Muted, fontSize = 8.sp, fontWeight = FontWeight.Black, letterSpacing = 0.6.sp)
+            Spacer(Modifier.height(8.dp))
+            Text(value, color = accent, fontSize = 17.sp, fontWeight = FontWeight.Black)
+            Spacer(Modifier.height(3.dp))
+            Text(detail, color = Muted, fontSize = 9.sp, lineHeight = 13.sp)
+        }
+    }
+}
+
+@Composable
+private fun DashboardTool(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    accent: Color,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+            .background(Panel).border(1.dp, Line, RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick).padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier.size(42.dp).clip(RoundedCornerShape(11.dp))
+                .background(accent.copy(alpha = 0.13f)).border(1.dp, accent.copy(alpha = 0.35f), RoundedCornerShape(11.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(21.dp))
+        }
+        Column(Modifier.weight(1f).padding(start = 12.dp, end = 8.dp)) {
+            Text(title, color = TextMain, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(3.dp))
+            Text(subtitle, color = Muted, fontSize = 10.sp, lineHeight = 14.sp)
+        }
+        Icon(Icons.Default.ChevronRight, contentDescription = "Open $title", tint = Muted, modifier = Modifier.size(19.dp))
     }
 }
 
