@@ -51,6 +51,12 @@ fun LocalHostDashboard(onOpenConsole: () -> Unit) {
     var difficulty by remember { mutableStateOf("Normal") }
     var seed by remember { mutableStateOf("") }
     var cheats by remember { mutableStateOf(false) }
+    var pvp by remember { mutableStateOf(true) }
+    var forceGameMode by remember { mutableStateOf(true) }
+    var allowList by remember { mutableStateOf(false) }
+    var maxPlayers by remember { mutableStateOf("10") }
+    var viewDistance by remember { mutableStateOf("10") }
+    var tickDistance by remember { mutableStateOf("4") }
     var setupConfirmed by remember { mutableStateOf(false) }
     var activeProfileId by remember { mutableStateOf(context.getSharedPreferences("craftnode_settings", Context.MODE_PRIVATE).getString("host_profile_id", "survival") ?: "survival") }
 
@@ -68,6 +74,12 @@ fun LocalHostDashboard(onOpenConsole: () -> Unit) {
         difficulty = prefs.getString("host_difficulty", "Normal") ?: "Normal"
         seed = prefs.getString("host_seed", "") ?: ""
         cheats = prefs.getBoolean("host_cheats", false)
+        pvp = prefs.getBoolean("host_pvp", true)
+        forceGameMode = prefs.getBoolean("host_force_game_mode", true)
+        allowList = prefs.getBoolean("host_allow_list", false)
+        maxPlayers = prefs.getInt("host_max_players", 10).toString()
+        viewDistance = prefs.getInt("host_view_distance", 10).toString()
+        tickDistance = prefs.getInt("host_tick_distance", 4).toString()
         setupConfirmed = false
         showWorldSetup = true
     }
@@ -83,6 +95,12 @@ fun LocalHostDashboard(onOpenConsole: () -> Unit) {
             notice = "Seed is optional. If provided, use a signed whole number up to 64 characters."
             return
         }
+        val players = maxPlayers.toIntOrNull()
+        val view = viewDistance.toIntOrNull()
+        val tick = tickDistance.toIntOrNull()
+        if (players == null || players !in 1..100) { notice = "Max players must be between 1 and 100."; return }
+        if (view == null || view !in 4..32) { notice = "View distance must be between 4 and 32 chunks."; return }
+        if (tick == null || tick !in 4..12) { notice = "Tick distance must be between 4 and 12 chunks."; return }
         if (!setupConfirmed) {
             notice = "Review the settings and confirm before hosting."
             return
@@ -104,7 +122,12 @@ fun LocalHostDashboard(onOpenConsole: () -> Unit) {
                 setProperty("difficulty", difficulty)
                 setProperty("seed", cleanSeed)
                 setProperty("cheats", cheats.toString())
-                setProperty("maxPlayers", getProperty("maxPlayers", "10"))
+                setProperty("pvp", pvp.toString())
+                setProperty("forceGameMode", forceGameMode.toString())
+                setProperty("allowList", allowList.toString())
+                setProperty("maxPlayers", players.toString())
+                setProperty("viewDistance", view.toString())
+                setProperty("tickDistance", tick.toString())
             }
             profileFile.outputStream().use { profile.store(it, "CraftNode pre-host world setup") }
 
@@ -115,7 +138,12 @@ fun LocalHostDashboard(onOpenConsole: () -> Unit) {
                 setProperty("allow-cheats", if (cheats) "on" else "off")
                 setProperty("level-seed", cleanSeed)
                 setProperty("server-name", cleanName)
-                if (!containsKey("max-players")) setProperty("max-players", "10")
+                setProperty("max-players", players.toString())
+                setProperty("pvp", if (pvp) "on" else "off")
+                setProperty("force-gamemode", if (forceGameMode) "on" else "off")
+                setProperty("allow-list", if (allowList) "on" else "off")
+                setProperty("view-distance", view.toString())
+                setProperty("tick-distance", tick.toString())
             }
             serverFile.outputStream().use { serverProps.store(it, "CraftNode world settings; seed applies when generating a new world") }
 
@@ -126,6 +154,12 @@ fun LocalHostDashboard(onOpenConsole: () -> Unit) {
                 .putString("host_difficulty", difficulty)
                 .putString("host_seed", cleanSeed)
                 .putBoolean("host_cheats", cheats)
+                .putBoolean("host_pvp", pvp)
+                .putBoolean("host_force_game_mode", forceGameMode)
+                .putBoolean("host_allow_list", allowList)
+                .putInt("host_max_players", players)
+                .putInt("host_view_distance", view)
+                .putInt("host_tick_distance", tick)
                 .apply()
             activeProfileId = profileId
             val intent = Intent(context, ServerHostService::class.java)
@@ -215,6 +249,13 @@ fun LocalHostDashboard(onOpenConsole: () -> Unit) {
                             Text("Engine support may vary.", color = HostMuted, fontSize = 11.sp)
                         }
                     }
+                    SettingToggleForHost("PvP", pvp) { pvp = it }
+                    SettingToggleForHost("Force selected game mode", forceGameMode) { forceGameMode = it }
+                    SettingToggleForHost("Enable allow-list / whitelist", allowList) { allowList = it }
+                    OutlinedTextField(value = maxPlayers, onValueChange = { maxPlayers = it.filter(Char::isDigit).take(3) }, label = { Text("Maximum players (1–100)") }, singleLine = true, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number))
+                    OutlinedTextField(value = viewDistance, onValueChange = { viewDistance = it.filter(Char::isDigit).take(2) }, label = { Text("View distance (4–32 chunks)") }, singleLine = true, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number))
+                    OutlinedTextField(value = tickDistance, onValueChange = { tickDistance = it.filter(Char::isDigit).take(2) }, label = { Text("Tick distance (4–12 chunks)") }, singleLine = true, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number))
+                    Text("Engine support varies. Seeds only affect newly generated worlds; these options are written to server.properties for compatible engines.", color = HostMuted, fontSize = 10.sp)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(checked = setupConfirmed, onCheckedChange = { setupConfirmed = it })
                         Text("I have reviewed these world settings")
@@ -358,6 +399,14 @@ fun LocalHostDashboard(onOpenConsole: () -> Unit) {
                 ) { Text("Send command to server") }
             }
         }
+    }
+}
+
+@Composable
+private fun SettingToggleForHost(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, modifier = Modifier.weight(1f), color = Color.White, fontSize = 12.sp)
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 
