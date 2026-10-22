@@ -207,7 +207,7 @@ private fun WorldCustomisationPanel(worldDir: File, onNotice: (String) -> Unit) 
                             ?: error("Could not read selected file")
                         installed++
                     }
-                    "mcpack", "mcaddon", "zip" -> {
+                    "mcpack", "mcaddon" -> {
                         // Stage only: community PHP engines do not automatically load Bedrock packs.
                         val out = File(stagedDir, safeName)
                         context.contentResolver.openInputStream(uri)?.use { input -> out.outputStream().use { input.copyTo(it) } }
@@ -229,7 +229,7 @@ private fun WorldCustomisationPanel(worldDir: File, onNotice: (String) -> Unit) 
         val chosenKeep = if (reset) false else keepInventory
         val chosenMax = if (reset) "10" else maxPlayers
         val chosenSeed = if (reset) "" else seed.trim()
-        if (chosenMax.toIntOrNull() !in 1..100) {
+        if (chosenMax.toIntOrNull()?.let { it in 1..100 } != true) {
             onNotice("Max players must be between 1 and 100.")
             return
         }
