@@ -326,24 +326,22 @@ fun LocalHostDashboard(onOpenConsole: () -> Unit) {
                         Spacer(Modifier.width(6.dp))
                         Text(if (running) "STOP" else "CONFIGURE & HOST", fontWeight = FontWeight.Black)
                     }
-                    OutlinedButton(
-                        onClick = {
-                            if (running) {
+                    if (running) {
+                        OutlinedButton(
+                            onClick = {
                                 val intent = Intent(context, ServerHostService::class.java)
                                     .setAction(ServerHostService.ACTION_RESTART)
                                     .putExtra(ServerHostService.EXTRA_PROFILE_ID, activeProfileId)
                                 ContextCompat.startForegroundService(context, intent)
                                 notice = "Restart requested; check the console for the actual result."
-                            } else {
-                                openWorldSetup()
-                            }
-                        },
-                        modifier = Modifier.weight(1f).height(49.dp),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(Icons.Default.Refresh, contentDescription = null)
-                        Spacer(Modifier.width(5.dp))
-                        Text(if (running) "RESTART" else "SETUP", fontWeight = FontWeight.Bold)
+                            },
+                            modifier = Modifier.weight(1f).height(49.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = null)
+                            Spacer(Modifier.width(5.dp))
+                            Text("RESTART", fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
                 Text(notice, color = HostGreen, fontSize = 11.sp)
