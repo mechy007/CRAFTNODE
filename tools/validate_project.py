@@ -141,7 +141,7 @@ def main() -> int:
             "pre-host setup includes multiplayer, capacity, and performance settings")
     require("World Studio" in world_studio and "craftnode-profile.properties" in world_studio,
             "World Studio persists per-profile settings locally")
-    require("DELETE WORLD PROFILE" in world_studio and "Confirm deletion" in world_studio
+    require("DELETE WORLD / SERVER PROFILE" in world_studio and "Confirm deletion" in world_studio
             and "Delete permanently" in world_studio and "host_profile_id" in world_studio,
             "world/profile deletion requires confirmation and protects the hosted profile")
     require("BACKUPS ·" in world_studio and '"backup"' in world_studio
