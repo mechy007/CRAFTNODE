@@ -225,7 +225,29 @@ fun WorldManagerPage(selectedProfile: String, onSelectProfile: (String) -> Unit,
                             onClick = { pendingDelete = PendingCraftNodeDelete(world, "world") },
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                        ) { Text("DELETE WORLD PROFILE") }
+                        ) { Text("DELETE WORLD / SERVER PROFILE") }
+                    }
+                }
+            }
+            item {
+                val backupRoot = File(context.filesDir, "backups/worlds")
+                val allBackups = remember(backupRefresh) {
+                    backupRoot.listFiles()?.filter { it.isFile && it.extension.equals("zip", true) }?.sortedByDescending { it.lastModified() }.orEmpty()
+                }
+                Card(colors = CardDefaults.cardColors(containerColor = ManagerPanel), shape = RoundedCornerShape(13.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(12.dp)) {
+                        Text("BACKUP LIBRARY · ${allBackups.size}", color = ManagerGreen, fontSize = 11.sp, fontWeight = FontWeight.Black)
+                        Text("Backups remain available even after a world profile is deleted.", color = ManagerMuted, fontSize = 10.sp)
+                        if (allBackups.isEmpty()) Text("No backups created yet.", color = ManagerMuted, fontSize = 11.sp)
+                        allBackups.forEach { backup ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(backup.name, color = ManagerText, fontSize = 10.sp)
+                                    Text(formatBytes(backup.length()), color = ManagerMuted, fontSize = 10.sp)
+                                }
+                                TextButton(onClick = { pendingDelete = PendingCraftNodeDelete(backup, "backup") }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                            }
+                        }
                     }
                 }
             }
