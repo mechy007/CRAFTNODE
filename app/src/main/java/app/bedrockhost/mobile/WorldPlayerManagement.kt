@@ -97,7 +97,13 @@ fun WorldManagerPage(selectedProfile: String, onSelectProfile: (String) -> Unit,
                             }
                         }
                     }
-                    notice = result.fold({ "Deleted ${target.file.name}. Other worlds and backups were left untouched."; refresh(); backupRefresh++ }, { "Delete failed: ${it.message ?: "unknown error"}" })
+                    if (result.isSuccess) {
+                        notice = "Deleted ${target.file.name}. Other worlds and backups were left untouched."
+                        refresh()
+                        backupRefresh++
+                    } else {
+                        notice = "Delete failed: ${result.exceptionOrNull()?.message ?: "unknown error"}"
+                    }
                     pendingDelete = null
                 }) { Text("Delete permanently", color = MaterialTheme.colorScheme.error) }
             },
