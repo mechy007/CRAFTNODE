@@ -43,7 +43,7 @@ def main() -> int:
     packaging_ok = re.search(r'keepDebugSymbols\s*\+=\s*["\']\*\*/libphp\.so["\']', gradle) and re.search(r'useLegacyPackaging\s*=\s*true', gradle)
     require(bool(packaging_ok),
             "Android packaging extracts the bundled PHP executable into nativeLibraryDir")
-    require('versionCode = 122' in gradle and 'versionName = "1.0.22"' in gradle,
+    require('versionCode = 123' in gradle and 'versionName = "1.0.23"' in gradle,
             "version code and name are bumped")
     require('ndkVersion = "27.2.12479018"' in gradle and 'src/main/cpp/CMakeLists.txt' in gradle,
             "Android build pins NDK and enables CMake")
@@ -126,6 +126,20 @@ def main() -> int:
             "CI checksum-verifies and architecture-checks the pinned Android ARM64 FRP client")
     require("auth.token" in tunnel_config and "replace(config.authToken, \"[REDACTED]\")" in tunnel_controller,
             "FRP credentials are redacted from client process logs")
+    world_studio = (ROOT / "app/src/main/java/app/bedrockhost/mobile/WorldPlayerManagement.kt").read_text()
+    require("World Studio" in world_studio and "craftnode-profile.properties" in world_studio,
+            "World Studio persists per-profile settings locally")
+    require('setProperty("level-seed", chosenSeed)' in world_studio
+            and 'setProperty("max-players", chosenMax)' in world_studio
+            and 'setProperty("allow-cheats"' in world_studio
+            and 'setProperty("gamemode"' in world_studio
+            and 'setProperty("difficulty"' in world_studio,
+            "World Studio writes compatible server.properties for seed, difficulty, mode, cheats, and player limit")
+    require('OpenMultipleDocuments()' in world_studio and '"phar"' in world_studio
+            and '"mcpack", "mcaddon"' in world_studio and 'File(worldDir, "plugins")' in world_studio,
+            "add-on manager imports PocketMine plugin files and stages Bedrock packs without claiming engine support")
+    require("successful remote Bedrock join" in (ROOT / "docs/FRP_UDP_REMOTE_TUNNEL.md").read_text(),
+            "remote multiplayer remains gated on real device validation")
     return 0
 
 
