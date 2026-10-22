@@ -43,7 +43,7 @@ def main() -> int:
     packaging_ok = re.search(r'keepDebugSymbols\s*\+=\s*["\']\*\*/libphp\.so["\']', gradle) and re.search(r'useLegacyPackaging\s*=\s*true', gradle)
     require(bool(packaging_ok),
             "Android packaging extracts the bundled PHP executable into nativeLibraryDir")
-    require('versionCode = 124' in gradle and 'versionName = "1.0.24"' in gradle,
+    require('versionCode = 125' in gradle and 'versionName = "1.0.25"' in gradle,
             "version code and name are bumped")
     require('ndkVersion = "27.2.12479018"' in gradle and 'src/main/cpp/CMakeLists.txt' in gradle,
             "Android build pins NDK and enables CMake")
@@ -137,6 +137,12 @@ def main() -> int:
             "pre-host setup offers optional seed and Bedrock game-mode choices")
     require("World Studio" in world_studio and "craftnode-profile.properties" in world_studio,
             "World Studio persists per-profile settings locally")
+    require("DELETE WORLD PROFILE" in world_studio and "Confirm deletion" in world_studio
+            and "Delete permanently" in world_studio and "host_profile_id" in world_studio,
+            "world/profile deletion requires confirmation and protects the hosted profile")
+    require("BACKUPS ·" in world_studio and '"backup"' in world_studio
+            and '"addon"' in world_studio and "ADVANCED WORLD RULE PRESETS" in world_studio,
+            "backup and add-on deletion plus advanced world-rule presets are present")
     require('setProperty("level-seed", chosenSeed)' in world_studio
             and 'setProperty("max-players", chosenMax)' in world_studio
             and 'setProperty("allow-cheats"' in world_studio
