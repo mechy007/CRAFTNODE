@@ -599,7 +599,7 @@ private fun PlayPage(
             }
         }
         item {
-            HeroCard(selectedProfile, onSelectProfile, onStart, notice, serverRunning)
+            HeroCard(selectedProfile, onStart, notice, serverRunning)
         }
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -725,31 +725,10 @@ private fun DashboardTool(
 @Composable
 private fun HeroCard(
     selectedProfile: String,
-    onSelectProfile: (String) -> Unit,
     onStart: () -> Unit,
     notice: String,
     serverRunning: Boolean
 ) {
-    var showWorldPicker by remember { mutableStateOf(false) }
-    if (showWorldPicker) {
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { showWorldPicker = false },
-            title = { Text("Switch world") },
-            text = {
-                Column {
-                    listOf("Friends SMP", "Creative Test", "Survival World").forEach { world ->
-                        androidx.compose.material3.TextButton(
-                            onClick = { onSelectProfile(world); showWorldPicker = false },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(if (selectedProfile == world) "✓  $world" else world, color = if (selectedProfile == world) Green else TextMain)
-                        }
-                    }
-                }
-            },
-            confirmButton = {}
-        )
-    }
     Card(
         modifier = Modifier.fillMaxWidth().border(1.dp, if (serverRunning) Color(0xFF16845D) else Line, RoundedCornerShape(18.dp)),
         shape = RoundedCornerShape(18.dp),
@@ -790,28 +769,15 @@ private fun HeroCard(
                 Text(selectedProfile.uppercase(), color = TextMain, fontSize = 27.sp, fontWeight = FontWeight.Black, lineHeight = 32.sp, letterSpacing = 0.4.sp)
                 Text("Your world. Your server. Your rules.", color = Muted, fontSize = 12.sp, lineHeight = 18.sp)
                 Spacer(Modifier.height(15.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedButton(
-                        onClick = { showWorldPicker = true },
-                        shape = RoundedCornerShape(9.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Line),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextMain),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.Folder, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Switch world", fontSize = 11.sp)
-                    }
-                    Button(
-                        onClick = onStart,
-                        modifier = Modifier.weight(1.25f).height(44.dp),
-                        shape = RoundedCornerShape(9.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = if (serverRunning) Redstone else Green, contentColor = Color(0xFF06110D))
-                    ) {
-                        Icon(Icons.Default.Gamepad, contentDescription = null, modifier = Modifier.size(17.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text(if (serverRunning) "STOP SERVER" else "CONFIGURE & HOST", fontWeight = FontWeight.Black, fontSize = 10.sp, letterSpacing = 0.1.sp)
-                    }
+                Button(
+                    onClick = onStart,
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(9.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = if (serverRunning) Redstone else Green, contentColor = Color(0xFF06110D))
+                ) {
+                    Icon(Icons.Default.Gamepad, contentDescription = null, modifier = Modifier.size(17.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (serverRunning) "STOP SERVER" else "CONFIGURE & HOST", fontWeight = FontWeight.Black, fontSize = 11.sp, letterSpacing = 0.1.sp)
                 }
                 Spacer(Modifier.height(12.dp))
                 Row(verticalAlignment = Alignment.Top) {
