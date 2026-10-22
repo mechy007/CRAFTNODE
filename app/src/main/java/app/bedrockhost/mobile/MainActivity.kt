@@ -196,19 +196,7 @@ private fun CraftNodeApp() {
                             ContextCompat.startForegroundService(context, stopIntent)
                             notice = "Stop requested. Confirm shutdown in Console."
                         } else {
-                        val profileId = when (selectedProfile) {
-                            "Friends SMP" -> "friends"
-                            "Creative Test" -> "creative"
-                            "Survival World" -> "survival"
-                            else -> selectedProfile.replace(Regex("[^A-Za-z0-9_-]"), "_").take(64)
-                        }
-                        val intent = Intent(context, ServerHostService::class.java)
-                            .setAction(ServerHostService.ACTION_START)
-                            .putExtra(ServerHostService.EXTRA_PROFILE_ID, profileId)
-                            .putExtra(ServerHostService.EXTRA_ENGINE_ID, if (selectedEngine == "Falcon (experimental)") ServerHostService.ENGINE_FALCON else ServerHostService.ENGINE_NOVAMINE)
-                        ContextCompat.startForegroundService(context, intent)
-                        val engineLabel = if (selectedEngine == "Falcon (experimental)") "Falcon experimental" else "PocketMine-MP"
-                        notice = "Start requested for $engineLabel. Confirm readiness in Console."
+                            page = Page.Host
                         }
                     },
                     onOpen = { page = it }
@@ -603,14 +591,8 @@ private fun PlayPage(
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                ToolCard(Icons.Default.Gamepad, "Configure", "World & server rules", Green, Modifier.weight(1f)) { onOpen(Page.Host) }
-                ToolCard(Icons.Default.Terminal, "Console", "Live process logs", TileBlue, Modifier.weight(1f)) { onOpen(Page.Console) }
-            }
-        }
-        item {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                ToolCard(Icons.Default.Folder, "Worlds", "Profiles & backups", TileOrange, Modifier.weight(1f)) { onOpen(Page.Worlds) }
-                ToolCard(Icons.Default.Groups, "Players", "Access management", TilePink, Modifier.weight(1f)) { onOpen(Page.Players) }
+                ToolCard(Icons.Default.Terminal, "Console", "Server logs", TileBlue, Modifier.weight(1f)) { onOpen(Page.Console) }
+                ToolCard(Icons.Default.Folder, "Worlds", "Switch & manage worlds", TileOrange, Modifier.weight(1f)) { onOpen(Page.Worlds) }
             }
         }
         item {
@@ -638,6 +620,26 @@ private fun HeroCard(
     notice: String,
     serverRunning: Boolean
 ) {
+    var showWorldPicker by remember { mutableStateOf(false) }
+    if (showWorldPicker) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showWorldPicker = false },
+            title = { Text("Switch world") },
+            text = {
+                Column {
+                    listOf("Friends SMP", "Creative Test", "Survival World").forEach { world ->
+                        androidx.compose.material3.TextButton(
+                            onClick = { onSelectProfile(world); showWorldPicker = false },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(if (selectedProfile == world) "✓  $world" else world, color = if (selectedProfile == world) Green else TextMain)
+                        }
+                    }
+                }
+            },
+            confirmButton = {}
+        )
+    }
     Card(
         modifier = Modifier.fillMaxWidth().border(1.dp, if (serverRunning) Color(0xFF16845D) else Line, RoundedCornerShape(18.dp)),
         shape = RoundedCornerShape(18.dp),
@@ -680,14 +682,7 @@ private fun HeroCard(
                 Spacer(Modifier.height(15.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     OutlinedButton(
-                        onClick = {
-                            val next = when (selectedProfile) {
-                                "Survival World" -> "Friends SMP"
-                                "Friends SMP" -> "Creative Test"
-                                else -> "Survival World"
-                            }
-                            onSelectProfile(next)
-                        },
+                        onClick = { showWorldPicker = true },
                         shape = RoundedCornerShape(9.dp),
                         border = androidx.compose.foundation.BorderStroke(1.dp, Line),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = TextMain),
@@ -705,7 +700,7 @@ private fun HeroCard(
                     ) {
                         Icon(Icons.Default.Gamepad, contentDescription = null, modifier = Modifier.size(17.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text(if (serverRunning) "STOP SERVER" else "START SERVER", fontWeight = FontWeight.Black, fontSize = 11.sp, letterSpacing = 0.2.sp)
+                        Text(if (serverRunning) "STOP SERVER" else "CONFIGURE & HOST", fontWeight = FontWeight.Black, fontSize = 10.sp, letterSpacing = 0.1.sp)
                     }
                 }
                 Spacer(Modifier.height(12.dp))
