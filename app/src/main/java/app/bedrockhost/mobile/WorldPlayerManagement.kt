@@ -74,7 +74,13 @@ fun WorldManagerPage(selectedProfile: String, onSelectProfile: (String) -> Unit,
                             "world" -> {
                                 val id = target.file.name
                                 val hostedId = context.getSharedPreferences("craftnode_settings", android.content.Context.MODE_PRIVATE).getString("host_profile_id", "survival") ?: "survival"
-                                require(id != selectedProfile && id != hostedId) { "This profile is currently selected or assigned to hosting. Select another profile first." }
+                                val consoleLog = File(context.filesDir, "logs/server-console.log").takeIf { it.isFile }?.readText().orEmpty()
+                                val startAt = maxOf(consoleLog.lastIndexOf("process started", ignoreCase = true), consoleLog.lastIndexOf("process launched", ignoreCase = true))
+                                val stopAt = maxOf(consoleLog.lastIndexOf("exited with code", ignoreCase = true), consoleLog.lastIndexOf("Start failed:", ignoreCase = true))
+                                val serverAppearsRunning = startAt >= 0 && startAt > stopAt
+                                require(id != selectedProfile && !(id == hostedId && serverAppearsRunning)) {
+                                    "This profile is selected or its server process appears active. Stop the server and select another profile first."
+                                }
                                 require(target.file.canonicalFile.parentFile == worldsRoot.canonicalFile) { "Unsafe world path." }
                                 require(target.file.isDirectory && target.file.name.matches(Regex("[A-Za-z0-9_-]{1,64}"))) { "Invalid world profile." }
                                 check(target.file.deleteRecursively()) { "Could not delete the profile." }
