@@ -30,6 +30,7 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import java.util.Properties
 
 private val ManagerPanel = Color(0xFF1D1829)
 private val ManagerLine = Color(0xFF332A46)
@@ -141,6 +142,8 @@ fun WorldManagerPage(selectedProfile: String, onSelectProfile: (String) -> Unit,
                                 Spacer(Modifier.width(4.dp)); Text("Backup")
                             }
                         }
+                        Spacer(Modifier.height(10.dp))
+                        WorldCustomisationPanel(worldDir = world, onNotice = { notice = it })
                     }
                 }
             }
@@ -148,6 +151,76 @@ fun WorldManagerPage(selectedProfile: String, onSelectProfile: (String) -> Unit,
         Spacer(Modifier.height(8.dp))
         Text(notice, color = ManagerMuted, fontSize = 11.sp)
         Text("Snapshots are stored in CraftNode app storage at backups/worlds. Restore/import/export UI comes next.", color = ManagerMuted, fontSize = 10.sp)
+    }
+}
+
+
+@Composable
+private fun WorldCustomisationPanel(worldDir: File, onNotice: (String) -> Unit) {
+    val settingsFile = remember(worldDir.absolutePath) { File(worldDir, "craftnode-profile.properties") }
+    val settings = remember(worldDir.absolutePath) {
+        Properties().apply {
+            if (settingsFile.isFile) runCatching { settingsFile.inputStream().use { load(it) } }
+        }
+    }
+    var difficulty by remember(worldDir.absolutePath) { mutableStateOf(settings.getProperty("difficulty", "Normal")) }
+    var gameMode by remember(worldDir.absolutePath) { mutableStateOf(settings.getProperty("gameMode", "Survival")) }
+    var cheats by remember(worldDir.absolutePath) { mutableStateOf(settings.getProperty("cheats", "false").toBoolean()) }
+    var pvp by remember(worldDir.absolutePath) { mutableStateOf(settings.getProperty("pvp", "true").toBoolean()) }
+    var keepInventory by remember(worldDir.absolutePath) { mutableStateOf(settings.getProperty("keepInventory", "false").toBoolean()) }
+    var maxPlayers by remember(worldDir.absolutePath) { mutableStateOf(settings.getProperty("maxPlayers", "10")) }
+    fun save(key: String, value: String) {
+        settings.setProperty(key, value)
+        runCatching { settingsFile.outputStream().use { settings.store(it, "CraftNode profile settings") } }
+            .onSuccess { onNotice("Saved ${worldDir.name} profile settings. Engine application is a separate compatibility step.") }
+            .onFailure { onNotice("Could not save profile settings: ${it.message ?: "unknown error"}") }
+    }
+    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF15111F)), shape = RoundedCornerShape(10.dp)) {
+        Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Text("WORLD STUDIO", color = ManagerGreen, fontSize = 11.sp, fontWeight = FontWeight.Black)
+            Text("Profile settings are saved locally. They are not yet guaranteed to change the running engine.", color = ManagerMuted, fontSize = 10.sp)
+            Text("Difficulty", color = ManagerText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
+                listOf("Peaceful", "Easy", "Normal", "Hard").forEach { option ->
+                    FilterChip(selected = difficulty == option, onClick = { difficulty = option; save("difficulty", option) }, label = { Text(option, fontSize = 10.sp) })
+                }
+            }
+            Text("Game mode", color = ManagerText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
+                listOf("Survival", "Creative", "Adventure", "Spectator").forEach { option ->
+                    FilterChip(selected = gameMode == option, onClick = { gameMode = option; save("gameMode", option) }, label = { Text(option, fontSize = 10.sp) })
+                }
+            }
+            SettingSwitchRow("Cheats", cheats) { cheats = it; save("cheats", it.toString()) }
+            SettingSwitchRow("PvP", pvp) { pvp = it; save("pvp", it.toString()) }
+            SettingSwitchRow("Keep inventory", keepInventory) { keepInventory = it; save("keepInventory", it.toString()) }
+            OutlinedTextField(value = maxPlayers, onValueChange = { input ->
+                val filtered = input.filter { it.isDigit() }.take(3)
+                maxPlayers = filtered
+                if (filtered.isNotBlank() && filtered.toIntOrNull() in 1..100) save("maxPlayers", filtered)
+            }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Max players (1–100)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+            OutlinedButton(onClick = {
+                difficulty = "Normal"; gameMode = "Survival"; cheats = false; pvp = true; keepInventory = false; maxPlayers = "10"
+                settings.clear()
+                settings.setProperty("difficulty", difficulty)
+                settings.setProperty("gameMode", gameMode)
+                settings.setProperty("cheats", cheats.toString())
+                settings.setProperty("pvp", pvp.toString())
+                settings.setProperty("keepInventory", keepInventory.toString())
+                settings.setProperty("maxPlayers", maxPlayers)
+                runCatching { settingsFile.outputStream().use { settings.store(it, "CraftNode profile settings") } }
+                    .onSuccess { onNotice("Restored default profile settings for ${worldDir.name}.") }
+                    .onFailure { onNotice("Could not save defaults: ${it.message ?: "unknown error"}") }
+            }, modifier = Modifier.fillMaxWidth()) { Text("Reset profile settings") }
+        }
+    }
+}
+
+@Composable
+private fun SettingSwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, color = ManagerText, fontSize = 12.sp, modifier = Modifier.weight(1f))
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 
