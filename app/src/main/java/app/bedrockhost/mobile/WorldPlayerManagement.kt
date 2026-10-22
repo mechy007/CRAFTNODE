@@ -157,10 +157,23 @@ fun WorldManagerPage(selectedProfile: String, onSelectProfile: (String) -> Unit,
 
 @Composable
 private fun WorldCustomisationPanel(worldDir: File, onNotice: (String) -> Unit) {
+    val context = LocalContext.current
     val settingsFile = remember(worldDir.absolutePath) { File(worldDir, "craftnode-profile.properties") }
+    val serverPropertiesFile = remember(worldDir.absolutePath) { File(worldDir, "server.properties") }
     val settings = remember(worldDir.absolutePath) {
         Properties().apply {
             if (settingsFile.isFile) runCatching { settingsFile.inputStream().use { load(it) } }
+            if (serverPropertiesFile.isFile) runCatching {
+                serverPropertiesFile.inputStream().use { server ->
+                    val engine = Properties().apply { load(server) }
+                    if (!containsKey("difficulty")) setProperty("difficulty", when (engine.getProperty("difficulty", "1")) { "0" -> "Peaceful"; "2" -> "Normal"; "3" -> "Hard"; else -> "Easy" })
+                    if (!containsKey("gameMode")) setProperty("gameMode", when (engine.getProperty("gamemode", "0")) { "1" -> "Creative"; "2" -> "Adventure"; "3" -> "Spectator"; else -> "Survival" })
+                    if (!containsKey("maxPlayers")) setProperty("maxPlayers", engine.getProperty("max-players", "10"))
+                    if (!containsKey("seed")) setProperty("seed", engine.getProperty("level-seed", ""))
+                    if (!containsKey("cheats")) setProperty("cheats", engine.getProperty("allow-cheats", "off").equals("on", true).toString())
+                    if (!containsKey("pvp")) setProperty("pvp", engine.getProperty("pvp", "on").equals("on", true).toString())
+                }
+            }
         }
     }
     var difficulty by remember(worldDir.absolutePath) { mutableStateOf(settings.getProperty("difficulty", "Normal")) }
@@ -169,49 +182,118 @@ private fun WorldCustomisationPanel(worldDir: File, onNotice: (String) -> Unit) 
     var pvp by remember(worldDir.absolutePath) { mutableStateOf(settings.getProperty("pvp", "true").toBoolean()) }
     var keepInventory by remember(worldDir.absolutePath) { mutableStateOf(settings.getProperty("keepInventory", "false").toBoolean()) }
     var maxPlayers by remember(worldDir.absolutePath) { mutableStateOf(settings.getProperty("maxPlayers", "10")) }
-    fun save(key: String, value: String) {
-        settings.setProperty(key, value)
-        runCatching { settingsFile.outputStream().use { settings.store(it, "CraftNode profile settings") } }
-            .onSuccess { onNotice("Saved ${worldDir.name} profile settings. Engine application is a separate compatibility step.") }
-            .onFailure { onNotice("Could not save profile settings: ${it.message ?: "unknown error"}") }
+    var seed by remember(worldDir.absolutePath) { mutableStateOf(settings.getProperty("seed", "")) }
+    var importedPacks by remember(worldDir.absolutePath) { mutableIntStateOf(0) }
+    val stagedDir = remember(worldDir.absolutePath) { File(worldDir, "craftnode-addons").apply { mkdirs() } }
+    val pluginsDir = remember(worldDir.absolutePath) { File(worldDir, "plugins").apply { mkdirs() } }
+    val addonPicker = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris ->
+        var installed = 0
+        var staged = 0
+        var rejected = 0
+        uris.forEach { uri ->
+            runCatching {
+                val displayName = context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) cursor.getString(0) else null
+                } ?: "addon"
+                val safeName = displayName.substringAfterLast('/').replace(Regex("[^A-Za-z0-9._-]"), "_").take(100)
+                val ext = safeName.substringAfterLast('.', "").lowercase()
+                when (ext) {
+                    "phar" -> {
+                        // PocketMine-style plugins are executable code; importing never means the plugin is trusted.
+                        val out = File(pluginsDir, safeName)
+                        context.contentResolver.openInputStream(uri)?.use { input -> out.outputStream().use { input.copyTo(it) } }
+                            ?: error("Could not read selected file")
+                        installed++
+                    }
+                    "mcpack", "mcaddon", "zip" -> {
+                        // Stage only: community PHP engines do not automatically load Bedrock packs.
+                        val out = File(stagedDir, safeName)
+                        context.contentResolver.openInputStream(uri)?.use { input -> out.outputStream().use { input.copyTo(it) } }
+                            ?: error("Could not read selected file")
+                        staged++
+                    }
+                    else -> rejected++
+                }
+            }.onFailure { rejected++ }
+        }
+        importedPacks++
+        onNotice("Imported $installed PocketMine plugin(s) to plugins/, staged $staged Bedrock pack(s) for manual compatibility review, rejected $rejected file(s). Review plugin trust before restarting.")
     }
+    fun saveAll(reset: Boolean = false) {
+        val chosenDifficulty = if (reset) "Normal" else difficulty
+        val chosenMode = if (reset) "Survival" else gameMode
+        val chosenCheats = if (reset) false else cheats
+        val chosenPvp = if (reset) true else pvp
+        val chosenKeep = if (reset) false else keepInventory
+        val chosenMax = if (reset) "10" else maxPlayers
+        val chosenSeed = if (reset) "" else seed.trim()
+        if (chosenMax.toIntOrNull() !in 1..100) {
+            onNotice("Max players must be between 1 and 100.")
+            return
+        }
+        if (chosenSeed.length > 64 || (chosenSeed.isNotBlank() && !chosenSeed.matches(Regex("-?[0-9]+")))) {
+            onNotice("Seed must be blank or a signed whole number (up to 64 characters).")
+            return
+        }
+        val snapshot = Properties().apply {
+            setProperty("difficulty", chosenDifficulty)
+            setProperty("gameMode", chosenMode)
+            setProperty("cheats", chosenCheats.toString())
+            setProperty("pvp", chosenPvp.toString())
+            setProperty("keepInventory", chosenKeep.toString())
+            setProperty("maxPlayers", chosenMax)
+            setProperty("seed", chosenSeed)
+        }
+        runCatching {
+            settingsFile.outputStream().use { snapshot.store(it, "CraftNode World Studio profile settings") }
+            // Write standard properties consumed by compatible PocketMine-style engines on next launch.
+            val engineProps = Properties()
+            if (serverPropertiesFile.isFile) serverPropertiesFile.inputStream().use { engineProps.load(it) }
+            engineProps.setProperty("difficulty", when (chosenDifficulty) { "Peaceful" -> "0"; "Easy" -> "1"; "Normal" -> "2"; else -> "3" })
+            engineProps.setProperty("gamemode", when (chosenMode) { "Creative" -> "1"; "Adventure" -> "2"; "Spectator" -> "3"; else -> "0" })
+            engineProps.setProperty("max-players", chosenMax)
+            engineProps.setProperty("allow-cheats", if (chosenCheats) "on" else "off")
+            engineProps.setProperty("pvp", if (chosenPvp) "on" else "off")
+            engineProps.setProperty("level-seed", chosenSeed)
+            serverPropertiesFile.outputStream().use { engineProps.store(it, "CraftNode World Studio - compatible engines only") }
+            difficulty = chosenDifficulty; gameMode = chosenMode; cheats = chosenCheats
+            pvp = chosenPvp; keepInventory = chosenKeep; maxPlayers = chosenMax; seed = chosenSeed
+            onNotice("World settings saved for ${worldDir.name}. Restart the server to load compatible server.properties. Seed affects new worlds only; Keep Inventory is saved as a preset and must be applied with a supported gamerule.")
+        }.onFailure { onNotice("Could not save world settings: ${it.message ?: "unknown error"}") }
+    }
+    val pluginCount = pluginsDir.listFiles()?.count { it.isFile && it.extension.equals("phar", true) } ?: 0
+    val stagedCount = stagedDir.listFiles()?.count { it.isFile } ?: 0
     Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF15111F)), shape = RoundedCornerShape(10.dp)) {
         Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
             Text("WORLD STUDIO", color = ManagerGreen, fontSize = 11.sp, fontWeight = FontWeight.Black)
-            Text("Profile settings are saved locally. They are not yet guaranteed to change the running engine.", color = ManagerMuted, fontSize = 10.sp)
+            Text("Settings persist per profile. Compatible server.properties are updated; restart to apply. Engine support varies.", color = ManagerMuted, fontSize = 10.sp)
             Text("Difficulty", color = ManagerText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
                 listOf("Peaceful", "Easy", "Normal", "Hard").forEach { option ->
-                    FilterChip(selected = difficulty == option, onClick = { difficulty = option; save("difficulty", option) }, label = { Text(option, fontSize = 10.sp) })
+                    FilterChip(selected = difficulty == option, onClick = { difficulty = option }, label = { Text(option, fontSize = 10.sp) })
                 }
             }
             Text("Game mode", color = ManagerText, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
                 listOf("Survival", "Creative", "Adventure", "Spectator").forEach { option ->
-                    FilterChip(selected = gameMode == option, onClick = { gameMode = option; save("gameMode", option) }, label = { Text(option, fontSize = 10.sp) })
+                    FilterChip(selected = gameMode == option, onClick = { gameMode = option }, label = { Text(option, fontSize = 10.sp) })
                 }
             }
-            SettingSwitchRow("Cheats", cheats) { cheats = it; save("cheats", it.toString()) }
-            SettingSwitchRow("PvP", pvp) { pvp = it; save("pvp", it.toString()) }
-            SettingSwitchRow("Keep inventory", keepInventory) { keepInventory = it; save("keepInventory", it.toString()) }
-            OutlinedTextField(value = maxPlayers, onValueChange = { input ->
-                val filtered = input.filter { it.isDigit() }.take(3)
-                maxPlayers = filtered
-                if (filtered.isNotBlank() && filtered.toIntOrNull() in 1..100) save("maxPlayers", filtered)
-            }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Max players (1–100)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-            OutlinedButton(onClick = {
-                difficulty = "Normal"; gameMode = "Survival"; cheats = false; pvp = true; keepInventory = false; maxPlayers = "10"
-                settings.clear()
-                settings.setProperty("difficulty", difficulty)
-                settings.setProperty("gameMode", gameMode)
-                settings.setProperty("cheats", cheats.toString())
-                settings.setProperty("pvp", pvp.toString())
-                settings.setProperty("keepInventory", keepInventory.toString())
-                settings.setProperty("maxPlayers", maxPlayers)
-                runCatching { settingsFile.outputStream().use { settings.store(it, "CraftNode profile settings") } }
-                    .onSuccess { onNotice("Restored default profile settings for ${worldDir.name}.") }
-                    .onFailure { onNotice("Could not save defaults: ${it.message ?: "unknown error"}") }
-            }, modifier = Modifier.fillMaxWidth()) { Text("Reset profile settings") }
+            SettingSwitchRow("Cheats / commands", cheats) { cheats = it }
+            SettingSwitchRow("PvP", pvp) { pvp = it }
+            SettingSwitchRow("Keep inventory preset", keepInventory) { keepInventory = it }
+            OutlinedTextField(value = seed, onValueChange = { seed = it.filter { c -> c.isDigit() || c == '-' }.take(64) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("World seed (blank = engine default)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+            OutlinedTextField(value = maxPlayers, onValueChange = { maxPlayers = it.filter { c -> c.isDigit() }.take(3) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Max players (1–100)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+            OutlinedButton(onClick = { saveAll() }, modifier = Modifier.fillMaxWidth()) { Text("SAVE WORLD SETTINGS") }
+            OutlinedButton(onClick = { saveAll(reset = true) }, modifier = Modifier.fillMaxWidth()) { Text("Reset profile settings") }
+            androidx.compose.material3.HorizontalDivider()
+            Text("ADD-ON & PLUGIN MANAGER", color = ManagerGreen, fontSize = 11.sp, fontWeight = FontWeight.Black)
+            Text("PocketMine-style .phar plugins are copied to plugins/ (review trust first). .mcpack/.mcaddon files are staged only because this engine does not guarantee Bedrock-pack support.", color = ManagerMuted, fontSize = 10.sp)
+            Text("Installed plugin files: $pluginCount · Staged packs: $stagedCount", color = ManagerText, fontSize = 11.sp)
+            OutlinedButton(onClick = { addonPicker.launch(arrayOf("*/*")) }, modifier = Modifier.fillMaxWidth()) { Text("IMPORT ADD-ON / PLUGIN FILES") }
+            if (importedPacks > 0) Text("Import scan completed. Verify engine logs after restart.", color = ManagerMuted, fontSize = 10.sp)
         }
     }
 }
