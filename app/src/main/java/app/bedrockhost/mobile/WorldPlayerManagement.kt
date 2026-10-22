@@ -38,6 +38,8 @@ private val ManagerText = Color(0xFFF1EDF8)
 private val ManagerMuted = Color(0xFFA39AB7)
 private val ManagerGreen = Color(0xFF4ADE80)
 
+private data class PendingCraftNodeDelete(val file: File, val kind: String)
+
 @Composable
 fun WorldManagerPage(selectedProfile: String, onSelectProfile: (String) -> Unit, onBack: () -> Unit) {
     val context = LocalContext.current
@@ -45,12 +47,64 @@ fun WorldManagerPage(selectedProfile: String, onSelectProfile: (String) -> Unit,
     val worldsRoot = remember { File(context.filesDir, "worlds") }
     var worlds by remember { mutableStateOf<List<File>>(emptyList()) }
     var newName by remember { mutableStateOf("") }
-    var notice by remember { mutableStateOf("World files stay in their existing locations. No world is deleted by this screen.") }
+    var notice by remember { mutableStateOf("World files stay in their existing locations. Deletion requires confirmation.") }
+    var pendingDelete by remember { mutableStateOf<PendingCraftNodeDelete?>(null) }
+    var backupRefresh by remember { mutableIntStateOf(0) }
     fun refresh() {
         worldsRoot.mkdirs()
         worlds = worldsRoot.listFiles()?.filter { it.isDirectory && it.name.matches(Regex("[A-Za-z0-9_-]{1,64}")) }?.sortedBy { it.name } ?: emptyList()
     }
     LaunchedEffect(worldsRoot) { refresh() }
+
+    pendingDelete?.let { target ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text("Confirm deletion") },
+            text = {
+                Text(when (target.kind) {
+                    "world" -> "Permanently delete world profile '${target.file.name}' and all files inside it? Existing backups will be kept."
+                    "backup" -> "Delete backup '${target.file.name}'? This cannot be undone."
+                    else -> "Delete '${target.file.name}'? This file may contain executable plugin code or a resource pack."
+                })
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val result = runCatching {
+                        when (target.kind) {
+                            "world" -> {
+                                val id = target.file.name
+                                val hostedId = context.getSharedPreferences("craftnode_settings", android.content.Context.MODE_PRIVATE).getString("host_profile_id", "survival") ?: "survival"
+                                require(id != selectedProfile && id != hostedId) { "This profile is currently selected or assigned to hosting. Select another profile first." }
+                                require(target.file.canonicalFile.parentFile == worldsRoot.canonicalFile) { "Unsafe world path." }
+                                require(target.file.isDirectory && target.file.name.matches(Regex("[A-Za-z0-9_-]{1,64}"))) { "Invalid world profile." }
+                                check(target.file.deleteRecursively()) { "Could not delete the profile." }
+                                runCatching { db.writableDatabase.delete("world_profiles", "id = ?", arrayOf(id)) }
+                            }
+                            "backup" -> {
+                                val backupRoot = File(context.filesDir, "backups/worlds").canonicalFile
+                                require(target.file.canonicalFile.parentFile == backupRoot) { "Backup is outside CraftNode's backup folder." }
+                                require(target.file.isFile && target.file.extension.equals("zip", true)) { "Invalid backup file." }
+                                check(target.file.delete()) { "Could not delete the backup." }
+                                backupRefresh++
+                            }
+                            else -> {
+                                val parent = target.file.canonicalFile.parentFile
+                                val allowed = worldsRoot.listFiles().orEmpty().any { profile ->
+                                    parent == File(profile, "plugins").canonicalFile || parent == File(profile, "craftnode-addons").canonicalFile
+                                }
+                                require(allowed && target.file.isFile) { "File is outside an allowed add-on folder." }
+                                check(target.file.delete()) { "Could not delete the add-on." }
+                            }
+                        }
+                    }
+                    notice = result.fold({ "Deleted ${target.file.name}. Other worlds and backups were left untouched."; refresh(); backupRefresh++ }, { "Delete failed: ${it.message ?: "unknown error"}" })
+                    pendingDelete = null
+                }) { Text("Delete permanently", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("Cancel") } }
+        )
+    }
+
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("World Manager", color = ManagerText, fontSize = 26.sp, fontWeight = FontWeight.Black, modifier = Modifier.weight(1f))
@@ -143,7 +197,29 @@ fun WorldManagerPage(selectedProfile: String, onSelectProfile: (String) -> Unit,
                             }
                         }
                         Spacer(Modifier.height(10.dp))
-                        WorldCustomisationPanel(worldDir = world, onNotice = { notice = it })
+                        WorldCustomisationPanel(worldDir = world, onNotice = { notice = it }, onDeleteRequest = { file, kind -> pendingDelete = PendingCraftNodeDelete(file, kind) })
+                        val backupDir = File(context.filesDir, "backups/worlds")
+                        val profileBackups = remember(world.name, backupRefresh) {
+                            backupDir.listFiles()?.filter { it.isFile && it.extension.equals("zip", true) && it.name.startsWith("${world.name}-") }?.sortedByDescending { it.lastModified() }.orEmpty()
+                        }
+                        if (profileBackups.isNotEmpty()) {
+                            HorizontalDivider(color = ManagerLine)
+                            Text("BACKUPS · ${profileBackups.size}", color = ManagerGreen, fontSize = 10.sp, fontWeight = FontWeight.Black)
+                            profileBackups.forEach { backup ->
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text(backup.name, color = ManagerText, fontSize = 10.sp)
+                                        Text(formatBytes(backup.length()), color = ManagerMuted, fontSize = 10.sp)
+                                    }
+                                    TextButton(onClick = { pendingDelete = PendingCraftNodeDelete(backup, "backup") }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                                }
+                            }
+                        }
+                        OutlinedButton(
+                            onClick = { pendingDelete = PendingCraftNodeDelete(world, "world") },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                        ) { Text("DELETE WORLD PROFILE") }
                     }
                 }
             }
@@ -156,7 +232,7 @@ fun WorldManagerPage(selectedProfile: String, onSelectProfile: (String) -> Unit,
 
 
 @Composable
-private fun WorldCustomisationPanel(worldDir: File, onNotice: (String) -> Unit) {
+private fun WorldCustomisationPanel(worldDir: File, onNotice: (String) -> Unit, onDeleteRequest: (File, String) -> Unit) {
     val context = LocalContext.current
     val settingsFile = remember(worldDir.absolutePath) { File(worldDir, "craftnode-profile.properties") }
     val serverPropertiesFile = remember(worldDir.absolutePath) { File(worldDir, "server.properties") }
@@ -181,6 +257,12 @@ private fun WorldCustomisationPanel(worldDir: File, onNotice: (String) -> Unit) 
     var cheats by remember(worldDir.absolutePath) { mutableStateOf(settings.getProperty("cheats", "false").toBoolean()) }
     var pvp by remember(worldDir.absolutePath) { mutableStateOf(settings.getProperty("pvp", "true").toBoolean()) }
     var keepInventory by remember(worldDir.absolutePath) { mutableStateOf(settings.getProperty("keepInventory", "false").toBoolean()) }
+    var mobSpawning by remember(worldDir.absolutePath) { mutableStateOf(settings.getProperty("mobSpawning", "true").toBoolean()) }
+    var mobGriefing by remember(worldDir.absolutePath) { mutableStateOf(settings.getProperty("mobGriefing", "true").toBoolean()) }
+    var daylightCycle by remember(worldDir.absolutePath) { mutableStateOf(settings.getProperty("daylightCycle", "true").toBoolean()) }
+    var weatherCycle by remember(worldDir.absolutePath) { mutableStateOf(settings.getProperty("weatherCycle", "true").toBoolean()) }
+    var fireSpread by remember(worldDir.absolutePath) { mutableStateOf(settings.getProperty("fireSpread", "true").toBoolean()) }
+    var showCoordinates by remember(worldDir.absolutePath) { mutableStateOf(settings.getProperty("showCoordinates", "true").toBoolean()) }
     var maxPlayers by remember(worldDir.absolutePath) { mutableStateOf(settings.getProperty("maxPlayers", "10")) }
     var seed by remember(worldDir.absolutePath) { mutableStateOf(settings.getProperty("seed", "")) }
     var importedPacks by remember(worldDir.absolutePath) { mutableIntStateOf(0) }
@@ -227,6 +309,12 @@ private fun WorldCustomisationPanel(worldDir: File, onNotice: (String) -> Unit) 
         val chosenCheats = if (reset) false else cheats
         val chosenPvp = if (reset) true else pvp
         val chosenKeep = if (reset) false else keepInventory
+        val chosenMobSpawning = if (reset) true else mobSpawning
+        val chosenMobGriefing = if (reset) true else mobGriefing
+        val chosenDaylightCycle = if (reset) true else daylightCycle
+        val chosenWeatherCycle = if (reset) true else weatherCycle
+        val chosenFireSpread = if (reset) true else fireSpread
+        val chosenCoordinates = if (reset) true else showCoordinates
         val chosenMax = if (reset) "10" else maxPlayers
         val chosenSeed = if (reset) "" else seed.trim()
         if (chosenMax.toIntOrNull()?.let { it in 1..100 } != true) {
@@ -243,6 +331,12 @@ private fun WorldCustomisationPanel(worldDir: File, onNotice: (String) -> Unit) 
             setProperty("cheats", chosenCheats.toString())
             setProperty("pvp", chosenPvp.toString())
             setProperty("keepInventory", chosenKeep.toString())
+            setProperty("mobSpawning", chosenMobSpawning.toString())
+            setProperty("mobGriefing", chosenMobGriefing.toString())
+            setProperty("daylightCycle", chosenDaylightCycle.toString())
+            setProperty("weatherCycle", chosenWeatherCycle.toString())
+            setProperty("fireSpread", chosenFireSpread.toString())
+            setProperty("showCoordinates", chosenCoordinates.toString())
             setProperty("maxPlayers", chosenMax)
             setProperty("seed", chosenSeed)
         }
@@ -260,6 +354,9 @@ private fun WorldCustomisationPanel(worldDir: File, onNotice: (String) -> Unit) 
             serverPropertiesFile.outputStream().use { engineProps.store(it, "CraftNode World Studio - compatible engines only") }
             difficulty = chosenDifficulty; gameMode = chosenMode; cheats = chosenCheats
             pvp = chosenPvp; keepInventory = chosenKeep; maxPlayers = chosenMax; seed = chosenSeed
+            mobSpawning = chosenMobSpawning; mobGriefing = chosenMobGriefing
+            daylightCycle = chosenDaylightCycle; weatherCycle = chosenWeatherCycle
+            fireSpread = chosenFireSpread; showCoordinates = chosenCoordinates
             onNotice("World settings saved for ${worldDir.name}. Restart the server to load compatible server.properties. Seed affects new worlds only; Keep Inventory is saved as a preset and must be applied with a supported gamerule.")
         }.onFailure { onNotice("Could not save world settings: ${it.message ?: "unknown error"}") }
     }
@@ -284,6 +381,14 @@ private fun WorldCustomisationPanel(worldDir: File, onNotice: (String) -> Unit) 
             SettingSwitchRow("Cheats / commands", cheats) { cheats = it }
             SettingSwitchRow("PvP", pvp) { pvp = it }
             SettingSwitchRow("Keep inventory preset", keepInventory) { keepInventory = it }
+            Text("ADVANCED WORLD RULE PRESETS", color = ManagerGreen, fontSize = 10.sp, fontWeight = FontWeight.Black)
+            SettingSwitchRow("Mob spawning", mobSpawning) { mobSpawning = it }
+            SettingSwitchRow("Mob griefing", mobGriefing) { mobGriefing = it }
+            SettingSwitchRow("Daylight cycle", daylightCycle) { daylightCycle = it }
+            SettingSwitchRow("Weather cycle", weatherCycle) { weatherCycle = it }
+            SettingSwitchRow("Fire spread", fireSpread) { fireSpread = it }
+            SettingSwitchRow("Show coordinates preset", showCoordinates) { showCoordinates = it }
+            Text("These rule presets are saved per profile. They are not automatically applied as gamerules unless the selected engine supports that integration.", color = ManagerMuted, fontSize = 10.sp)
             OutlinedTextField(value = seed, onValueChange = { seed = it.filter { c -> c.isDigit() || c == '-' }.take(64) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("World seed (blank = engine default)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
             OutlinedTextField(value = maxPlayers, onValueChange = { maxPlayers = it.filter { c -> c.isDigit() }.take(3) }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Max players (1–100)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
             OutlinedButton(onClick = { saveAll() }, modifier = Modifier.fillMaxWidth()) { Text("SAVE WORLD SETTINGS") }
@@ -293,6 +398,15 @@ private fun WorldCustomisationPanel(worldDir: File, onNotice: (String) -> Unit) 
             Text("PocketMine-style .phar plugins are copied to plugins/ (review trust first). .mcpack/.mcaddon files are staged only because this engine does not guarantee Bedrock-pack support.", color = ManagerMuted, fontSize = 10.sp)
             Text("Installed plugin files: $pluginCount · Staged packs: $stagedCount", color = ManagerText, fontSize = 11.sp)
             OutlinedButton(onClick = { addonPicker.launch(arrayOf("*/*")) }, modifier = Modifier.fillMaxWidth()) { Text("IMPORT ADD-ON / PLUGIN FILES") }
+            (pluginsDir.listFiles()?.filter { it.isFile }.orEmpty() + stagedDir.listFiles()?.filter { it.isFile }.orEmpty()).forEach { addon ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(addon.name, color = ManagerText, fontSize = 11.sp)
+                        Text(if (addon.parentFile == pluginsDir) "Plugin · plugins/" else "Staged pack · manual compatibility review", color = ManagerMuted, fontSize = 9.sp)
+                    }
+                    TextButton(onClick = { onDeleteRequest(addon, "addon") }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                }
+            }
             if (importedPacks > 0) Text("Import scan completed. Verify engine logs after restart.", color = ManagerMuted, fontSize = 10.sp)
         }
     }
