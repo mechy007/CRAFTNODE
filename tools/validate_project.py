@@ -135,6 +135,10 @@ def main() -> int:
             and '"Creative"' in host_dashboard and '"Survival"' in host_dashboard
             and '"Adventure"' in host_dashboard and '"Spectator"' in host_dashboard,
             "pre-host setup offers optional seed and Bedrock game-mode choices")
+    require('"PvP"' in host_dashboard and '"Force selected game mode"' in host_dashboard
+            and '"Enable allow-list / whitelist"' in host_dashboard and '"Maximum players (1–100)"' in host_dashboard
+            and '"View distance (4–32 chunks)"' in host_dashboard and '"Tick distance (4–12 chunks)"' in host_dashboard,
+            "pre-host setup includes multiplayer, capacity, and performance settings")
     require("World Studio" in world_studio and "craftnode-profile.properties" in world_studio,
             "World Studio persists per-profile settings locally")
     require("DELETE WORLD PROFILE" in world_studio and "Confirm deletion" in world_studio
