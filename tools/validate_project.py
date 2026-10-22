@@ -43,7 +43,7 @@ def main() -> int:
     packaging_ok = re.search(r'keepDebugSymbols\s*\+=\s*["\']\*\*/libphp\.so["\']', gradle) and re.search(r'useLegacyPackaging\s*=\s*true', gradle)
     require(bool(packaging_ok),
             "Android packaging extracts the bundled PHP executable into nativeLibraryDir")
-    require('versionCode = 123' in gradle and 'versionName = "1.0.23"' in gradle,
+    require('versionCode = 124' in gradle and 'versionName = "1.0.24"' in gradle,
             "version code and name are bumped")
     require('ndkVersion = "27.2.12479018"' in gradle and 'src/main/cpp/CMakeLists.txt' in gradle,
             "Android build pins NDK and enables CMake")
@@ -127,6 +127,14 @@ def main() -> int:
     require("auth.token" in tunnel_config and "replace(config.authToken, \"[REDACTED]\")" in tunnel_controller,
             "FRP credentials are redacted from client process logs")
     world_studio = (ROOT / "app/src/main/java/app/bedrockhost/mobile/WorldPlayerManagement.kt").read_text()
+    host_dashboard = (ROOT / "app/src/main/java/app/bedrockhost/mobile/LocalHostDashboard.kt").read_text()
+    require('"CONFIGURE & HOST"' in host_dashboard and '"Save & Host World"' in host_dashboard
+            and '"I have reviewed these world settings"' in host_dashboard,
+            "hosting requires completing the pre-host world setup confirmation")
+    require('"World seed (optional)"' in host_dashboard and '"Leave blank for a random seed"' in host_dashboard
+            and '"Creative"' in host_dashboard and '"Survival"' in host_dashboard
+            and '"Adventure"' in host_dashboard and '"Spectator"' in host_dashboard,
+            "pre-host setup offers optional seed and Bedrock game-mode choices")
     require("World Studio" in world_studio and "craftnode-profile.properties" in world_studio,
             "World Studio persists per-profile settings locally")
     require('setProperty("level-seed", chosenSeed)' in world_studio
