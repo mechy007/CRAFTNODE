@@ -6,10 +6,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Refresh
@@ -28,6 +30,7 @@ import androidx.core.content.ContextCompat
 import app.bedrockhost.mobile.server.ServerHostService
 import kotlinx.coroutines.delay
 import java.io.File
+import java.util.Properties
 
 private val HostBg = Color(0xFF080D18)
 private val HostPanel = Color(0xFF111B2C)
@@ -41,13 +44,96 @@ fun LocalHostDashboard(onOpenConsole: () -> Unit) {
     val logFile = remember { File(context.filesDir, "logs/server-console.log") }
     var logs by remember { mutableStateOf("") }
     var command by remember { mutableStateOf("") }
-    var notice by remember { mutableStateOf("Local Bedrock hosting · real process logs") }
+    var notice by remember { mutableStateOf("Configure your world before hosting it.") }
+    var showWorldSetup by remember { mutableStateOf(false) }
+    var worldName by remember { mutableStateOf("My World") }
+    var gameMode by remember { mutableStateOf("Survival") }
+    var difficulty by remember { mutableStateOf("Normal") }
+    var seed by remember { mutableStateOf("") }
+    var cheats by remember { mutableStateOf(false) }
+    var setupConfirmed by remember { mutableStateOf(false) }
+    var activeProfileId by remember { mutableStateOf("survival") }
 
     fun refresh() {
         logs = runCatching {
             if (logFile.exists()) logFile.readLines().takeLast(160).joinToString("\n")
             else "No logs yet. Install the Bedrock engine in Settings, then start the server."
         }.getOrDefault("Could not read the server log.")
+    }
+
+    fun openWorldSetup() {
+        val prefs = context.getSharedPreferences("craftnode_settings", Context.MODE_PRIVATE)
+        worldName = prefs.getString("host_world_name", "My World") ?: "My World"
+        gameMode = prefs.getString("host_game_mode", "Survival") ?: "Survival"
+        difficulty = prefs.getString("host_difficulty", "Normal") ?: "Normal"
+        seed = prefs.getString("host_seed", "") ?: ""
+        cheats = prefs.getBoolean("host_cheats", false)
+        setupConfirmed = false
+        showWorldSetup = true
+    }
+
+    fun saveWorldAndHost() {
+        val cleanName = worldName.trim()
+        if (cleanName.isBlank() || cleanName.length > 40) {
+            notice = "Enter a world name from 1 to 40 characters."
+            return
+        }
+        val cleanSeed = seed.trim()
+        if (cleanSeed.length > 64 || (cleanSeed.isNotBlank() && !cleanSeed.matches(Regex("-?[0-9]+")))) {
+            notice = "Seed is optional. If provided, use a signed whole number up to 64 characters."
+            return
+        }
+        if (!setupConfirmed) {
+            notice = "Review the settings and confirm before hosting."
+            return
+        }
+        val profileId = cleanName.lowercase()
+            .replace(Regex("[^a-z0-9_-]+"), "-")
+            .trim('-', '_')
+            .take(40)
+            .ifBlank { "world" }
+        val worldDir = File(context.filesDir, "worlds/$profileId")
+        val profileFile = File(worldDir, "craftnode-profile.properties")
+        val serverFile = File(worldDir, "server.properties")
+        runCatching {
+            check(worldDir.exists() || worldDir.mkdirs()) { "Could not create the world profile." }
+            val profile = Properties().apply {
+                if (profileFile.isFile) profileFile.inputStream().use { load(it) }
+                setProperty("worldName", cleanName)
+                setProperty("gameMode", gameMode)
+                setProperty("difficulty", difficulty)
+                setProperty("seed", cleanSeed)
+                setProperty("cheats", cheats.toString())
+                setProperty("maxPlayers", getProperty("maxPlayers", "10"))
+            }
+            profileFile.outputStream().use { profile.store(it, "CraftNode pre-host world setup") }
+
+            val serverProps = Properties().apply {
+                if (serverFile.isFile) serverFile.inputStream().use { load(it) }
+                setProperty("difficulty", when (difficulty) { "Peaceful" -> "0"; "Easy" -> "1"; "Normal" -> "2"; else -> "3" })
+                setProperty("gamemode", when (gameMode) { "Creative" -> "1"; "Adventure" -> "2"; "Spectator" -> "3"; else -> "0" })
+                setProperty("allow-cheats", if (cheats) "on" else "off")
+                setProperty("level-seed", cleanSeed)
+                setProperty("server-name", cleanName)
+                if (!containsKey("max-players")) setProperty("max-players", "10")
+            }
+            serverFile.outputStream().use { serverProps.store(it, "CraftNode world settings; seed applies when generating a new world") }
+
+            context.getSharedPreferences("craftnode_settings", Context.MODE_PRIVATE).edit()
+                .putString("host_world_name", cleanName)
+                .putString("host_game_mode", gameMode)
+                .putString("host_difficulty", difficulty)
+                .putString("host_seed", cleanSeed)
+                .putBoolean("host_cheats", cheats)
+                .apply()
+            activeProfileId = profileId
+            val intent = Intent(context, ServerHostService::class.java)
+                .setAction(ServerHostService.ACTION_START)
+                .putExtra(ServerHostService.EXTRA_PROFILE_ID, profileId)
+            ContextCompat.startForegroundService(context, intent)
+            showWorldSetup = false
+            notice = "World settings saved. Hosting requested; wait for the console to confirm server readiness."
+        }.onFailure { notice = "Could not save world settings: ${it.message ?: "unknown error"}" }
     }
 
     LaunchedEffect(logFile) {
@@ -64,8 +150,6 @@ fun LocalHostDashboard(onOpenConsole: () -> Unit) {
     val lastStopIndex = logLines.indexOfLast { line ->
         line.contains("exited with code") || line.contains("Start failed:")
     }
-    // A spawned process is not proof that the Bedrock server finished booting.
-    // Only count readiness messages that occurred after the latest process start.
     val running = lastStartIndex >= 0 && lastStartIndex > lastStopIndex
     val serverReady = running && logLines.drop(lastStartIndex + 1).any { line ->
         line.contains("Server started.", ignoreCase = true) ||
@@ -83,13 +167,77 @@ fun LocalHostDashboard(onOpenConsole: () -> Unit) {
         else -> "OFFLINE / UNKNOWN"
     }
 
+    if (showWorldSetup) {
+        AlertDialog(
+            onDismissRequest = { showWorldSetup = false },
+            title = { Text("Configure your world") },
+            text = {
+                Column(
+                    Modifier.fillMaxWidth().heightIn(max = 520.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text("Complete this setup before CraftNode starts hosting.", color = HostMuted, fontSize = 12.sp)
+                    OutlinedTextField(
+                        value = worldName,
+                        onValueChange = { worldName = it.take(40) },
+                        label = { Text("World name") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text("GAME MODE", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                    listOf("Survival", "Creative", "Adventure", "Spectator").forEach { option ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = gameMode == option, onClick = { gameMode = option })
+                            Text(option)
+                        }
+                    }
+                    HorizontalDivider()
+                    Text("DIFFICULTY", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                    listOf("Peaceful", "Easy", "Normal", "Hard").forEach { option ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = difficulty == option, onClick = { difficulty = option })
+                            Text(option)
+                        }
+                    }
+                    OutlinedTextField(
+                        value = seed,
+                        onValueChange = { seed = it.filter { c -> c.isDigit() || c == '-' }.take(64) },
+                        label = { Text("World seed (optional)") },
+                        placeholder = { Text("Leave blank for a random seed") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = cheats, onCheckedChange = { cheats = it })
+                        Column {
+                            Text("Allow cheats")
+                            Text("Engine support may vary.", color = HostMuted, fontSize = 11.sp)
+                        }
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = setupConfirmed, onCheckedChange = { setupConfirmed = it })
+                        Text("I have reviewed these world settings")
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = { saveWorldAndHost() }, enabled = setupConfirmed) {
+                    Text("Save & Host World")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showWorldSetup = false }) { Text("Cancel") }
+            }
+        )
+    }
+
     Column(
         Modifier.fillMaxSize().background(HostBg).padding(horizontal = 15.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("MineHost Pocket", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black)
+                Text("CraftNode", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black)
                 Text("BEDROCK EDITION · ON THIS ANDROID DEVICE", color = HostMuted, fontSize = 9.sp, letterSpacing = 1.sp)
             }
             Row(
@@ -113,19 +261,20 @@ fun LocalHostDashboard(onOpenConsole: () -> Unit) {
                     HostInfoTile("App heap", "${appHeapMb} MB", Modifier.weight(1f))
                 }
                 Text(
-                    "To connect from another device, use this phone's Wi-Fi IP address and port 19132. 127.0.0.1 only works on this phone.",
+                    "Choose your world settings before hosting. For LAN play, connect using this phone's Wi-Fi IP and port 19132.",
                     color = HostMuted, fontSize = 11.sp, lineHeight = 16.sp
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
                         onClick = {
-                            val intent = Intent(context, ServerHostService::class.java)
-                                .setAction(if (running) ServerHostService.ACTION_STOP else ServerHostService.ACTION_START)
-                                .putExtra(ServerHostService.EXTRA_PROFILE_ID, "survival")
-                            ContextCompat.startForegroundService(context, intent)
-                            notice = if (running) "Stop requested; watch the real console output."
-                                else "Start requested; wait for real process logs before assuming it is online."
-                            refresh()
+                            if (running) {
+                                val intent = Intent(context, ServerHostService::class.java)
+                                    .setAction(ServerHostService.ACTION_STOP)
+                                ContextCompat.startForegroundService(context, intent)
+                                notice = "Stop requested; watch the real console output."
+                            } else {
+                                openWorldSetup()
+                            }
                         },
                         modifier = Modifier.weight(1f).height(49.dp),
                         shape = RoundedCornerShape(12.dp),
@@ -133,22 +282,26 @@ fun LocalHostDashboard(onOpenConsole: () -> Unit) {
                     ) {
                         Icon(Icons.Default.PowerSettingsNew, contentDescription = null)
                         Spacer(Modifier.width(6.dp))
-                        Text(if (running) "STOP" else "START", fontWeight = FontWeight.Black)
+                        Text(if (running) "STOP" else "CONFIGURE & HOST", fontWeight = FontWeight.Black)
                     }
                     OutlinedButton(
                         onClick = {
-                            val intent = Intent(context, ServerHostService::class.java)
-                                .setAction(ServerHostService.ACTION_RESTART)
-                                .putExtra(ServerHostService.EXTRA_PROFILE_ID, "survival")
-                            ContextCompat.startForegroundService(context, intent)
-                            notice = "Restart requested; check the console for the actual result."
+                            if (running) {
+                                val intent = Intent(context, ServerHostService::class.java)
+                                    .setAction(ServerHostService.ACTION_RESTART)
+                                    .putExtra(ServerHostService.EXTRA_PROFILE_ID, activeProfileId)
+                                ContextCompat.startForegroundService(context, intent)
+                                notice = "Restart requested; check the console for the actual result."
+                            } else {
+                                openWorldSetup()
+                            }
                         },
                         modifier = Modifier.weight(1f).height(49.dp),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Icon(Icons.Default.Refresh, contentDescription = null)
                         Spacer(Modifier.width(5.dp))
-                        Text("RESTART", fontWeight = FontWeight.Bold)
+                        Text(if (running) "RESTART" else "SETUP", fontWeight = FontWeight.Bold)
                     }
                 }
                 Text(notice, color = HostGreen, fontSize = 11.sp)
