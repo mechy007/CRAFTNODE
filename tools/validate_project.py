@@ -138,7 +138,9 @@ def main() -> int:
     require('OpenMultipleDocuments()' in world_studio and '"phar"' in world_studio
             and '"mcpack", "mcaddon"' in world_studio and 'File(worldDir, "plugins")' in world_studio,
             "add-on manager imports PocketMine plugin files and stages Bedrock packs without claiming engine support")
-    require("successful remote Bedrock join" in (ROOT / "docs/FRP_UDP_REMOTE_TUNNEL.md").read_text(),
+    remote_doc = (ROOT / "docs/FRP_UDP_REMOTE_TUNNEL.md").read_text()
+    require("Verify an actual Bedrock join from a second phone on a different network" in remote_doc
+            and "Remote multiplayer is not verified yet" in remote_doc,
             "remote multiplayer remains gated on real device validation")
     return 0
 
