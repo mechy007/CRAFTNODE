@@ -48,6 +48,16 @@ jobs:
               raise SystemExit("Failed to apply Android TCP header patch")
           PY
 
+      - name: Show Falcon build configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Pinned Falcon source:"
+          git -C third_party/Falcon log -1 --oneline
+          echo "Submodules and dependency declarations:"
+          git -C third_party/Falcon submodule status || true
+          grep -R -n -E "FetchContent|ExternalProject|EncodingSettings|NBT" third_party/Falcon/CMakeLists.txt third_party/Falcon/cmake third_party/Falcon 2>/dev/null | head -n 100 || true
+
       - name: Install build tools
         run: |
           sudo apt-get update
