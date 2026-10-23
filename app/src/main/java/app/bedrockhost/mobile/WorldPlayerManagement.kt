@@ -50,6 +50,11 @@ fun WorldManagerPage(selectedProfile: String, onSelectProfile: (String) -> Unit,
     val db = remember { CraftNodeDatabase(context) }
     val worldsRoot = remember { File(context.filesDir, "worlds") }
     var worlds by remember { mutableStateOf<List<File>>(emptyList()) }
+    fun refresh() {
+        worldsRoot.mkdirs()
+        worlds = worldsRoot.listFiles()?.filter { it.isDirectory && it.name.matches(Regex("[A-Za-z0-9_-]{1,64}")) }?.sortedBy { it.name } ?: emptyList()
+    }
+
     var pendingExportWorld by remember { mutableStateOf<File?>(null) }
     var importNotice by remember { mutableStateOf<String?>(null) }
     val exportWorldLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri: Uri? ->
@@ -134,10 +139,6 @@ fun WorldManagerPage(selectedProfile: String, onSelectProfile: (String) -> Unit,
     var notice by remember { mutableStateOf("World files stay in their existing locations. Deletion requires confirmation.") }
     var pendingDelete by remember { mutableStateOf<PendingCraftNodeDelete?>(null) }
     var backupRefresh by remember { mutableIntStateOf(0) }
-    fun refresh() {
-        worldsRoot.mkdirs()
-        worlds = worldsRoot.listFiles()?.filter { it.isDirectory && it.name.matches(Regex("[A-Za-z0-9_-]{1,64}")) }?.sortedBy { it.name } ?: emptyList()
-    }
     LaunchedEffect(worldsRoot) { refresh() }
 
     pendingDelete?.let { target ->
