@@ -50,6 +50,8 @@ fun WorldManagerPage(selectedProfile: String, onSelectProfile: (String) -> Unit,
     val db = remember { CraftNodeDatabase(context) }
     val worldsRoot = remember { File(context.filesDir, "worlds") }
     var worlds by remember { mutableStateOf<List<File>>(emptyList()) }
+    var worldSearch by remember { mutableStateOf("") }
+    var recentFirst by remember { mutableStateOf(false) }
     fun refresh() {
         worldsRoot.mkdirs()
         worlds = worldsRoot.listFiles()?.filter { it.isDirectory && it.name.matches(Regex("[A-Za-z0-9_-]{1,64}")) }?.sortedBy { it.name } ?: emptyList()
@@ -248,10 +250,28 @@ fun WorldManagerPage(selectedProfile: String, onSelectProfile: (String) -> Unit,
             }, modifier = Modifier.weight(1f)) { Text("Export selected") }
         }
         importNotice?.let { Text(it, color = ManagerMuted, fontSize = 11.sp) }
-        Text("PROFILES", color = ManagerGreen, fontSize = 10.sp, fontWeight = FontWeight.Black)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text("PROFILES", color = ManagerGreen, fontSize = 10.sp, fontWeight = FontWeight.Black)
+            TextButton(onClick = { recentFirst = !recentFirst }) {
+                Text(if (recentFirst) "Recently updated ↓" else "Name A–Z", color = ManagerGreen, fontSize = 11.sp)
+            }
+        }
+        OutlinedTextField(
+            value = worldSearch,
+            onValueChange = { worldSearch = it.take(64) },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            label = { Text("Search profiles") },
+            placeholder = { Text("Find a world by name") }
+        )
         Spacer(Modifier.height(6.dp))
+        val matchingWorlds = worlds.filter { it.name.contains(worldSearch.trim(), ignoreCase = true) }
+        val visibleWorlds = if (recentFirst) matchingWorlds.sortedByDescending { it.lastModified() } else matchingWorlds.sortedBy { it.name.lowercase() }
         LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(worlds, key = { it.name }) { world ->
+            if (visibleWorlds.isEmpty()) {
+                item { Text(if (worldSearch.isBlank()) "No profiles yet. Create one above." else "No profiles match your search.", color = ManagerMuted, fontSize = 12.sp) }
+            }
+            items(visibleWorlds, key = { it.name }) { world ->
                 val bytes = world.walkTopDown().filter { it.isFile }.sumOf { it.length() }
                 Card(modifier = Modifier.fillMaxWidth().border(1.dp, ManagerLine, RoundedCornerShape(13.dp)), colors = CardDefaults.cardColors(containerColor = ManagerPanel), shape = RoundedCornerShape(13.dp)) {
                     Column(Modifier.fillMaxWidth().padding(12.dp)) {
