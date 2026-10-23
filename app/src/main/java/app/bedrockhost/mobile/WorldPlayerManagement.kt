@@ -1,6 +1,9 @@
 package app.bedrockhost.mobile
 
 import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -29,6 +32,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import java.util.Properties
 
@@ -46,14 +50,95 @@ fun WorldManagerPage(selectedProfile: String, onSelectProfile: (String) -> Unit,
     val db = remember { CraftNodeDatabase(context) }
     val worldsRoot = remember { File(context.filesDir, "worlds") }
     var worlds by remember { mutableStateOf<List<File>>(emptyList()) }
-    var newName by remember { mutableStateOf("") }
-    var notice by remember { mutableStateOf("World files stay in their existing locations. Deletion requires confirmation.") }
-    var pendingDelete by remember { mutableStateOf<PendingCraftNodeDelete?>(null) }
-    var backupRefresh by remember { mutableIntStateOf(0) }
     fun refresh() {
         worldsRoot.mkdirs()
         worlds = worldsRoot.listFiles()?.filter { it.isDirectory && it.name.matches(Regex("[A-Za-z0-9_-]{1,64}")) }?.sortedBy { it.name } ?: emptyList()
     }
+
+    var pendingExportWorld by remember { mutableStateOf<File?>(null) }
+    var importNotice by remember { mutableStateOf<String?>(null) }
+    val exportWorldLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri: Uri? ->
+        val source = pendingExportWorld
+        pendingExportWorld = null
+        if (uri != null && source != null) {
+            runCatching {
+                context.contentResolver.openOutputStream(uri)?.use { output ->
+                    ZipOutputStream(output).use { zip ->
+                        source.walkTopDown().filter { it.isFile }.forEach { file ->
+                            val relative = file.relativeTo(source).invariantSeparatorsPath
+                            require(relative.isNotBlank() && !relative.startsWith("/") && !relative.split("/").any { it == ".." }) { "Unsafe archive path." }
+                            zip.putNextEntry(ZipEntry(relative))
+                            FileInputStream(file).use { it.copyTo(zip) }
+                            zip.closeEntry()
+                        }
+                    }
+                } ?: error("Could not open the destination file.")
+            }.onSuccess { importNotice = "Exported " + source.name + " as a ZIP archive." }
+                .onFailure { importNotice = "Export failed: " + (it.message ?: "unknown error") }
+        }
+    }
+    val importWorldLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        if (uri != null) {
+            var created: File? = null
+            runCatching {
+                val displayName = (uri.lastPathSegment ?: "ImportedWorld").substringAfterLast('/').substringBeforeLast('.')
+                    .filter { it.isLetterOrDigit() || it == '_' || it == '-' }.take(40).ifBlank { "ImportedWorld" }
+                var id = displayName
+                var suffix = 2
+                while (File(worldsRoot, id).exists()) { id = displayName.take(34) + "_" + suffix++ }
+                val target = File(worldsRoot, id)
+                check(target.mkdirs()) { "Could not create a new profile for this import." }
+                created = target
+                var totalBytes = 0L
+                var entries = 0
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    ZipInputStream(input).use { zip ->
+                        var entry = zip.nextEntry
+                        val buffer = ByteArray(8192)
+                        while (entry != null) {
+                            entries++
+                            require(entries <= 10000) { "Archive contains too many files." }
+                            val path = entry.name.replace('\\', '/')
+                            require(path.isNotBlank() && !path.startsWith("/") && !path.split("/").any { it == ".." } && !path.contains(':')) { "Unsafe archive path." }
+                            val destination = File(target, path).canonicalFile
+                            require(destination == target.canonicalFile || destination.path.startsWith(target.canonicalPath + File.separator)) { "Archive path escaped the profile." }
+                            if (entry.isDirectory) destination.mkdirs() else {
+                                destination.parentFile?.mkdirs()
+                                FileOutputStream(destination).use { output ->
+                                    while (true) {
+                                        val count = zip.read(buffer)
+                                        if (count < 0) break
+                                        totalBytes += count
+                                        require(totalBytes <= 1024L * 1024L * 1024L) { "Archive expands beyond the 1 GiB safety limit." }
+                                        output.write(buffer, 0, count)
+                                    }
+                                }
+                            }
+                            zip.closeEntry()
+                            entry = zip.nextEntry
+                        }
+                    }
+                } ?: error("Could not read the selected archive.")
+                check(entries > 0) { "The selected ZIP archive is empty." }
+                val now = System.currentTimeMillis()
+                val values = android.content.ContentValues().apply {
+                    put("id", id); put("display_name", id.replace('-', ' ').replace('_', ' '))
+                    put("engine_id", "selected"); put("world_path", target.absolutePath)
+                    put("is_selected", 0); put("created_at", now); put("updated_at", now)
+                }
+                runCatching { db.writableDatabase.insertWithOnConflict("world_profiles", null, values, android.database.sqlite.SQLiteDatabase.CONFLICT_REPLACE) }
+                importNotice = "Imported into new profile '" + target.name + "'. Select it and restart the server to use it."
+                refresh()
+            }.onFailure {
+                created?.deleteRecursively()
+                importNotice = "Import failed: " + (it.message ?: "invalid ZIP archive")
+            }
+        }
+    }
+    var newName by remember { mutableStateOf("") }
+    var notice by remember { mutableStateOf("World files stay in their existing locations. Deletion requires confirmation.") }
+    var pendingDelete by remember { mutableStateOf<PendingCraftNodeDelete?>(null) }
+    var backupRefresh by remember { mutableIntStateOf(0) }
     LaunchedEffect(worldsRoot) { refresh() }
 
     pendingDelete?.let { target ->
@@ -152,6 +237,17 @@ fun WorldManagerPage(selectedProfile: String, onSelectProfile: (String) -> Unit,
             }
         }
         Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = { importWorldLauncher.launch(arrayOf("application/zip", "application/octet-stream", "application/x-zip-compressed")) }, modifier = Modifier.weight(1f)) { Text("Import ZIP") }
+            OutlinedButton(onClick = {
+                val selected = worlds.firstOrNull { it.name == selectedProfile }
+                if (selected != null) {
+                    pendingExportWorld = selected
+                    exportWorldLauncher.launch(selected.name + ".zip")
+                } else importNotice = "Select an existing profile before exporting."
+            }, modifier = Modifier.weight(1f)) { Text("Export selected") }
+        }
+        importNotice?.let { Text(it, color = ManagerMuted, fontSize = 11.sp) }
         Text("PROFILES", color = ManagerGreen, fontSize = 10.sp, fontWeight = FontWeight.Black)
         Spacer(Modifier.height(6.dp))
         LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
