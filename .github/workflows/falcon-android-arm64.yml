@@ -82,6 +82,7 @@ jobs:
         env:
           FALCON_BUILD_VERSION: "1.26.52.01"
         run: |
+          set -euo pipefail
           cmake -S third_party/Falcon -B build-falcon-android -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
@@ -93,7 +94,46 @@ jobs:
             -DOPENSSL_ROOT_DIR="$VCPKG_ROOT/installed/arm64-android" \
             -DZLIB_USE_STATIC_LIBS=ON \
             -DFALCON_BUILD_VERSION="$FALCON_BUILD_VERSION"
-          cmake --build build-falcon-android --parallel 2
+
+      - name: Raise Falcon NBT byte-array limits for Bedrock login packets
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+
+          roots = [Path("third_party/Falcon"), Path("build-falcon-android")]
+          headers = [p for root in roots if root.exists() for p in root.rglob("EncodingSettings.h")]
+          sources = [p for root in roots if root.exists() for p in root.rglob("EncodingSettings.cpp")]
+          if not headers or not sources:
+              raise SystemExit("Could not locate Falcon NBT EncodingSettings.h/.cpp after CMake configure")
+
+          header_changes = 0
+          for path in headers:
+              original = path.read_text()
+              updated = original.replace("mMaxByteArraySize(1024 * 1024)", "mMaxByteArraySize(2 * 1024 * 1024)")
+              if updated != original:
+                  path.write_text(updated)
+                  header_changes += 1
+
+          source_changes = 0
+          for path in sources:
+              original = path.read_text()
+              updated = original.replace("server.mMaxByteArraySize = 1024 * 512;", "server.mMaxByteArraySize = 2 * 1024 * 1024;")
+              if updated != original:
+                  path.write_text(updated)
+                  source_changes += 1
+
+          if header_changes == 0 and source_changes == 0:
+              combined = "\\n".join(p.read_text() for p in headers + sources)
+              if "mMaxByteArraySize(2 * 1024 * 1024)" not in combined and "server.mMaxByteArraySize = 2 * 1024 * 1024;" not in combined:
+                  raise SystemExit("NBT byte-array limit patch did not apply; refusing to build an unpatched engine")
+          print(f"Patched NBT byte-array limit to 2 MiB (headers changed: {header_changes}, sources changed: {source_changes})")
+          PY
+          grep -R -n "mMaxByteArraySize.*2 \* 1024 \* 1024" third_party/Falcon build-falcon-android
+
+      - name: Build patched Falcon
+        run: cmake --build build-falcon-android --parallel 2
 
       - name: Verify Android ARM64 binary
         run: |
