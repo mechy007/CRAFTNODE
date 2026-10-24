@@ -878,7 +878,9 @@ private fun ListPage(
 
 @Composable
 private fun SettingsPage(nativeReport: String, selectedEngine: String, onSelectEngine: (String) -> Unit, selectedMinecraftVersion: String, onSelectMinecraftVersion: (String) -> Unit, onInstallEngine: () -> Unit) {
-    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+    val context = LocalContext.current
+    var memoryReport by remember { mutableStateOf(MemoryExtensionManager.inspect(context).asText()) }
+    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp).verticalScroll(rememberScrollState())) {
         Text("Settings", color = TextMain, fontSize = 28.sp, fontWeight = FontWeight.Black)
         Spacer(Modifier.height(5.dp))
         Text("Customize your CraftNode experience.", color = Muted, fontSize = 13.sp)
@@ -951,6 +953,12 @@ private fun SettingsPage(nativeReport: String, selectedEngine: String, onSelectE
         }
         Text("Falcon is an experimental native Android build. Its checksum is verified before installation, and it is stored separately from NovaMine. Actual device launch and multiplayer compatibility are not yet confirmed.", color = Muted, fontSize = 11.sp, lineHeight = 16.sp)
         Spacer(Modifier.height(12.dp))
+        Text("PowerNukkitX memory manager", color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(5.dp))
+        Text("Read-only device RAM and kernel swap inspection for no-root Android. This does not create swap or increase physical RAM.", color = Muted, fontSize = 11.sp, lineHeight = 15.sp)
+        Spacer(Modifier.height(8.dp))
+        SettingRow("Live memory report", memoryReport)
+        OutlinedButton(onClick = { memoryReport = MemoryExtensionManager.inspect(context).asText() }, modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)) { Text("REFRESH MEMORY STATUS") }
         SettingRow("Engine diagnostics", nativeReport)
         SettingRow("World data", "Stored locally in app-private storage. Avoid uninstalling the app until worlds are backed up.")
         SettingRow("Experimental engine", "Falcon is experimental; keep NovaMine installed until device compatibility is confirmed.")
