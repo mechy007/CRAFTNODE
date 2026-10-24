@@ -72,8 +72,12 @@ def main() -> int:
     require("ACTION_RESTART" in service and "restartEngine(intent.getStringExtra(EXTRA_PROFILE_ID)" in service
             and "ServerHostService.ACTION_RESTART" in dashboard,
             "restart control is wired from the dashboard to the server service")
-    require("ACTION_INSTALL_JAVA21" not in service and "PowerNukkitX" not in main_activity,
-            "unsupported Java and PowerNukkitX setup is removed")
+    require("ACTION_INSTALL_JAVA21" not in service,
+            "unsupported Java runtime installation action remains absent")
+    require('Triple("PowerNukkitX",' in main_activity and 'Triple("Endstone",' in main_activity
+            and "Android host support not listed upstream" in main_activity
+            and "upstream x86-64 host target is not Android ARM64" in main_activity,
+            "PowerNukkitX and Endstone are catalogued with explicit compatibility warnings")
     require("formatConsoleLine" in main_activity and "HH:mm:ss" in main_activity,
             "console timestamps are rendered in readable clock format")
     require('selectedMinecraftVersion' in main_activity and 'Minecraft Bedrock ${version.first}' in main_activity,
