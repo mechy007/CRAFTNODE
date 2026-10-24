@@ -76,8 +76,9 @@ def main() -> int:
             "unsupported Java runtime installation action remains absent")
     require('Triple("PowerNukkitX",' in main_activity and 'Triple("Endstone",' in main_activity
             and "Android host support not listed upstream" in main_activity
-            and "upstream x86-64 host target is not Android ARM64" in main_activity,
-            "PowerNukkitX and Endstone are catalogued with explicit compatibility warnings")
+            and "upstream x86-64 host target is not Android ARM64" in main_activity
+            and "Cloudburst Nukkit" not in main_activity,
+            "Only requested PowerNukkitX and Endstone candidates remain in the engine catalog")
     require("formatConsoleLine" in main_activity and "HH:mm:ss" in main_activity,
             "console timestamps are rendered in readable clock format")
     require('selectedMinecraftVersion' in main_activity and 'Minecraft Bedrock ${version.first}' in main_activity,

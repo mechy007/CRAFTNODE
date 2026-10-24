@@ -85,22 +85,41 @@ The current v1.0.0 APK is a UI/build preview and is not a working server host. R
 The Settings engine catalog now lists all three engines. Only PocketMine-MP is install-enabled; PowerNukkitX and Endstone remain visibly marked as planned/unverified. This is intentional, not a claim that either server is already runnable on Android.
 
 
-## Additional engine candidates (2026-10-24)
+## Focus: PowerNukkitX and Endstone (2026-10-24)
 
-The Settings catalog now exposes three additional candidates as **planned and non-selectable**. They must not enable installation or server start until an Android ARM64 runtime, a pinned upstream artifact, checksum verification, world persistence, and a real Bedrock LAN connection are demonstrated.
+CraftNode's next engine work is limited to these two requested engines. Do not add Cloudburst Nukkit or other candidates to the catalog.
 
-### Cloudburst Nukkit
-- Upstream source: https://github.com/CloudburstMC/Nukkit
-- Java-based Bedrock server. This is a useful alternative to test because it is an active public source repository and avoids depending on the currently unavailable Falcon source checkout.
-- Not yet integrated. Android compatibility, Java runtime footprint, supported Bedrock protocol, and plugin/world behavior require a feasibility spike.
+### PowerNukkitX — first implementation target
 
-### PowerNukkitX
-- Upstream source: https://github.com/PowerNukkitX/PowerNukkitX
-- Java 21+ server; upstream host requirements do not list Android as a supported OS. Keep planned until a bundled ARM64 Java runtime and device tests pass.
+- Official upstream: https://github.com/PowerNukkitX/PowerNukkitX
+- The reviewed upstream release page lists PowerNukkitX 3.0.5 for Bedrock 1.26.50 / protocol 2193. Verify the exact release asset before pinning it; do not use a moving "latest" URL in production.
+- Upstream requires 64-bit Java 21+ and at least 2 GB RAM (4 GB+ recommended). Its documented OSes do not include Android.
+- This makes it the first target to investigate, not yet a verified Android engine. Before making it selectable, CraftNode must have a legally redistributable ARM64 Android Java 21 runtime, verify pinned artifacts with SHA-256, launch the server from app-private storage, preserve worlds across restart, and pass a real Bedrock LAN join.
+- PowerNukkitX supports resource packs but its FAQ says behavior packs are not supported.
 
-### Endstone
-- Upstream source: https://github.com/EndstoneMC/endstone
-- Depends on Mojang Bedrock Dedicated Server and targets x86-64 host platforms upstream. It is not a direct ARM64 Android option; do not attempt to run its x86-64 binary as if it were native.
+Sources:
+- https://powernukkitx.org/install
+- https://powernukkitx.org/docs/faq
+- https://github.com/PowerNukkitX/PowerNukkitX/releases
 
-### Implementation guardrail
-Only PocketMine/NovaMine and Falcon retain their existing selectable catalog status in this change; that status is not proof of successful device hosting. New candidates are display-only, and the installer remains disabled for them. The next practical engine spike should evaluate Cloudburst Nukkit first, then compare its runtime footprint and protocol compatibility with PocketMine/NovaMine.
+### Endstone — separate feasibility gate
+
+- Official upstream: https://github.com/EndstoneMC/endstone
+- Endstone depends on Mojang's Bedrock Dedicated Server and exposes Python/C++ plugin APIs. Upstream host targets are x86-64 Windows/Linux, not native ARM64 Android.
+- Do not bundle or run the x86-64 BDS binary on the user's ARM64 phone as if it were native. Do not enable Endstone until a supported, legal, and technically viable ARM64 Android path is demonstrated.
+- Its Python/C++ APIs are a key differentiator; preserve that goal in the design, but do not imply that Python/C++ plugins can run until the server itself boots successfully.
+
+Sources:
+- https://endstone.dev/latest/getting-started/installation/
+- https://next.endstone.dev/docs
+- https://www.minecraft.net/en-us/download/server/bedrock
+
+### Implementation gates
+
+1. Pin and checksum the upstream engine artifact and record its license.
+2. Prove a Java 21+ ARM64 runtime can execute inside CraftNode without Termux or another app.
+3. Prove process start/stop, real logs, app-private world persistence, and graceful restart.
+4. Verify a Bedrock client joins over LAN on a physical Android device.
+5. Test remote play separately only after LAN works.
+
+Until those gates pass, PowerNukkitX and Endstone stay non-selectable and must not show a fake successful install. CI success on Linux is useful evidence but does not prove Android compatibility.
