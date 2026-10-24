@@ -918,7 +918,6 @@ private fun SettingsPage(nativeReport: String, selectedEngine: String, onSelectE
         listOf(
             Triple("PocketMine-MP", "NovaMine · Minecraft 1.26.51 · install option; device join test pending", true),
             Triple("Falcon (experimental)", "Native Android ARM64 · Minecraft 1.26.52 · source/build currently blocked", true),
-            Triple("Cloudburst Nukkit", "Java Bedrock server · Android runtime and protocol compatibility not verified", false),
             Triple("PowerNukkitX", "Java 21+ · Android host support not listed upstream; runtime not verified", false),
             Triple("Endstone", "Uses Mojang BDS · upstream x86-64 host target is not Android ARM64", false)
         ).forEach { engine ->
