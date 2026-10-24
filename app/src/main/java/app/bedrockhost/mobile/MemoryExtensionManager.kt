@@ -5,7 +5,7 @@ import android.content.Context
 import android.os.Debug
 import java.io.File
 
-/** Read-only no-root memory diagnostics. Never attempts to activate system swap. */
+/** Read-only no-root memory diagnostics. never attempts to activate system swap. */
 object MemoryExtensionManager {
     data class Snapshot(val totalRamMb: Long, val availableRamMb: Long, val appPssMb: Long, val activeSwapMb: Long?, val swapStatus: String, val recommendation: String) {
         fun asText(): String = buildString {
