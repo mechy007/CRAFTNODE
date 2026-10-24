@@ -123,3 +123,16 @@ Sources:
 5. Test remote play separately only after LAN works.
 
 Until those gates pass, PowerNukkitX and Endstone stay non-selectable and must not show a fake successful install. CI success on Linux is useful evidence but does not prove Android compatibility.
+
+
+## No-root PowerNukkitX memory diagnostics (2026-10-24)
+
+CraftNode now has a read-only Settings panel that reports Android total/available physical RAM, CraftNode app PSS, and the kernel-visible `/proc/swaps` entries when readable. It offers a conservative future heap recommendation only; it does not configure a PowerNukkitX JVM because the engine/runtime is not yet integrated.
+
+Important limitations:
+
+- The app does not create a swap file, run `swapon`, request root, or claim storage is extra physical RAM.
+- `/proc/swaps` can be unreadable or restricted on some Android builds; in that case the UI reports the limitation rather than inferring swap is absent.
+- Even if active swap is visible, that does not mean CraftNode can change system swap settings.
+- Java heap sizing must be applied to the actual PowerNukkitX launch command only after an Android ARM64 Java 21 runtime and engine launch path are verified.
+- A read-only report and successful CI build do not prove improved server performance; validate on the target phone under load.
