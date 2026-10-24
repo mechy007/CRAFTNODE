@@ -916,23 +916,26 @@ private fun SettingsPage(nativeReport: String, selectedEngine: String, onSelectE
         Text("Server software", color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         listOf(
-            Triple("PocketMine-MP", "NovaMine · Minecraft 1.26.51 · stable choice", true),
-            Triple("Falcon (experimental)", "Native Android ARM64 · Minecraft 1.26.52 · testing required", true)
+            Triple("PocketMine-MP", "NovaMine · Minecraft 1.26.51 · install option; device join test pending", true),
+            Triple("Falcon (experimental)", "Native Android ARM64 · Minecraft 1.26.52 · source/build currently blocked", true),
+            Triple("Cloudburst Nukkit", "Java Bedrock server · Android runtime and protocol compatibility not verified", false),
+            Triple("PowerNukkitX", "Java 21+ · Android host support not listed upstream; runtime not verified", false),
+            Triple("Endstone", "Uses Mojang BDS · upstream x86-64 host target is not Android ARM64", false)
         ).forEach { engine ->
             Card(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
                     .border(1.dp, if (selectedEngine == engine.first) Purple else Line, RoundedCornerShape(13.dp))
-                    .clickable { onSelectEngine(engine.first) },
+                    .clickable(enabled = engine.third) { onSelectEngine(engine.first) },
                 colors = CardDefaults.cardColors(containerColor = Panel),
                 shape = RoundedCornerShape(13.dp)
             ) {
                 Row(Modifier.fillMaxWidth().padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text(engine.first, color = TextMain, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text(engine.first, color = if (engine.third) TextMain else Muted, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         Spacer(Modifier.height(3.dp))
                         Text(engine.second, color = Muted, fontSize = 10.sp, lineHeight = 14.sp)
                     }
-                    Text(if (selectedEngine == engine.first) "SELECTED" else if (engine.third) "READY" else "PLANNED",
+                    Text(if (selectedEngine == engine.first) "SELECTED" else if (engine.third) "EXPERIMENTAL" else "PLANNED",
                         color = if (selectedEngine == engine.first) Green else Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                 }
             }
