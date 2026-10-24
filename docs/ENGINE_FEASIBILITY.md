@@ -83,3 +83,24 @@ The current v1.0.0 APK is a UI/build preview and is not a working server host. R
 
 ### Current UI behavior
 The Settings engine catalog now lists all three engines. Only PocketMine-MP is install-enabled; PowerNukkitX and Endstone remain visibly marked as planned/unverified. This is intentional, not a claim that either server is already runnable on Android.
+
+
+## Additional engine candidates (2026-10-24)
+
+The Settings catalog now exposes three additional candidates as **planned and non-selectable**. They must not enable installation or server start until an Android ARM64 runtime, a pinned upstream artifact, checksum verification, world persistence, and a real Bedrock LAN connection are demonstrated.
+
+### Cloudburst Nukkit
+- Upstream source: https://github.com/CloudburstMC/Nukkit
+- Java-based Bedrock server. This is a useful alternative to test because it is an active public source repository and avoids depending on the currently unavailable Falcon source checkout.
+- Not yet integrated. Android compatibility, Java runtime footprint, supported Bedrock protocol, and plugin/world behavior require a feasibility spike.
+
+### PowerNukkitX
+- Upstream source: https://github.com/PowerNukkitX/PowerNukkitX
+- Java 21+ server; upstream host requirements do not list Android as a supported OS. Keep planned until a bundled ARM64 Java runtime and device tests pass.
+
+### Endstone
+- Upstream source: https://github.com/EndstoneMC/endstone
+- Depends on Mojang Bedrock Dedicated Server and targets x86-64 host platforms upstream. It is not a direct ARM64 Android option; do not attempt to run its x86-64 binary as if it were native.
+
+### Implementation guardrail
+Only PocketMine/NovaMine and Falcon retain their existing selectable catalog status in this change; that status is not proof of successful device hosting. New candidates are display-only, and the installer remains disabled for them. The next practical engine spike should evaluate Cloudburst Nukkit first, then compare its runtime footprint and protocol compatibility with PocketMine/NovaMine.
