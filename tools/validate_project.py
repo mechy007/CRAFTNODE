@@ -165,6 +165,15 @@ def main() -> int:
     require("Verify an actual Bedrock join from a second phone on a different network" in remote_doc
             and "Remote multiplayer is not verified yet" in remote_doc,
             "remote multiplayer remains gated on real device validation")
+    memory_manager = (ROOT / "app/src/main/java/app/bedrockhost/mobile/MemoryExtensionManager.kt").read_text()
+    require("ActivityManager.MemoryInfo" in memory_manager and "Debug.getPss()" in memory_manager,
+            "memory manager reports Android physical/available RAM and CraftNode app PSS")
+    require('File("/proc/swaps")' in memory_manager and "activeSwapMb" in memory_manager,
+            "memory manager checks kernel-reported active swap rather than trusting a created file")
+    require("never attempts to activate system swap" in memory_manager and "not applied to a server yet" in memory_manager,
+            "no-root memory diagnostics never claim swap activation or PowerNukkitX heap application")
+    require("PowerNukkitX memory manager" in main_activity and "REFRESH MEMORY STATUS" in main_activity,
+            "Settings exposes a refreshable PowerNukkitX memory diagnostics panel")
     return 0
 
 
