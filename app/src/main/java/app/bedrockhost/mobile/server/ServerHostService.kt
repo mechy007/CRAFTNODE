@@ -8,6 +8,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import app.bedrockhost.mobile.craftmind.ServerRuntimeStatusStore
 import java.io.File
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.concurrent.thread
@@ -18,6 +19,7 @@ class ServerHostService : Service() {
     private var logThread: Thread? = null
     private val listeners = CopyOnWriteArrayList<(String) -> Unit>()
     private val logFile by lazy { File(filesDir, "logs/server-console.log").apply { parentFile?.mkdirs() } }
+    private val runtimeStatus by lazy { ServerRuntimeStatusStore(File(filesDir, "craftmind/server-runtime.properties")) }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -106,11 +108,13 @@ class ServerHostService : Service() {
             stopSelf()
             return
         }
+        runCatching { runtimeStatus.write("starting", safeId, engineId) }
         if (engineId == ENGINE_FALCON) {
             startFalconEngine(safeId)
             return
         }
         if (engineId != ENGINE_NOVAMINE) {
+            runCatching { runtimeStatus.write("failed", safeId, engineId) }
             log("Start failed: unknown engine selection.")
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
@@ -124,6 +128,7 @@ class ServerHostService : Service() {
         } ?: engineRoot.walkTopDown().firstOrNull { it.isFile && it.name == "php" }
         val php = bundledPhp.takeIf { it.isFile && it.canExecute() } ?: extractedPhp
         if (!phar.isFile || php == null || !php.canExecute()) {
+            runCatching { runtimeStatus.write("failed", safeId, engineId) }
             log("Start failed: Bedrock server engine is not installed. Use Settings > Install Bedrock Engine first.")
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
@@ -149,17 +154,20 @@ class ServerHostService : Service() {
                 }
                 .start()
             process = started
+            runCatching { runtimeStatus.write("running", safeId, engineId, started.pid()) }
             log("NovaMine process started for profile $safeId using ${if (php == bundledPhp) "APK-bundled PHP" else "extracted PHP fallback"}; waiting for server readiness.")
             logThread = thread(name = "CraftNode-Server-Logs") {
                 started.inputStream.bufferedReader().useLines { lines -> lines.forEach { log(it) } }
                 val exit = runCatching { started.waitFor() }.getOrNull()
                 log("NovaMine exited with code ${exit ?: "unknown"}.")
+                runCatching { runtimeStatus.write("stopped", safeId, engineId, started.pid()) }
                 if (process === started) process = null
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
             updateNotification("PocketMine-MP process running")
         } catch (e: Exception) {
+            runCatching { runtimeStatus.write("failed", safeId, engineId) }
             log("Start failed: ${e.javaClass.simpleName}: ${e.message ?: "unknown error"}")
             process = null
             stopForeground(STOP_FOREGROUND_REMOVE)
@@ -221,17 +229,20 @@ class ServerHostService : Service() {
                     environment()["SSL_CERT_DIR"] = "/system/etc/security/cacerts"
                 }.start()
             process = started
+            runCatching { runtimeStatus.write("running", profileId, ENGINE_FALCON, started.pid()) }
             log("Experimental Falcon process launched from Android nativeLibraryDir for $profileId. Readiness and gameplay remain unverified.")
             logThread = thread(name = "CraftNode-Falcon-Logs") {
                 started.inputStream.bufferedReader().useLines { lines -> lines.forEach { log(it) } }
                 val exit = runCatching { started.waitFor() }.getOrNull()
                 log("Falcon exited with code ${exit ?: "unknown"}.")
+                runCatching { runtimeStatus.write("stopped", profileId, ENGINE_FALCON, started.pid()) }
                 if (process === started) process = null
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
             updateNotification("Falcon experimental process launched")
         } catch (e: Exception) {
+            runCatching { runtimeStatus.write("failed", profileId, ENGINE_FALCON) }
             log("Falcon start failed: ${e.javaClass.simpleName}: ${e.message ?: "unknown error"}")
             process = null
             stopForeground(STOP_FOREGROUND_REMOVE)
@@ -267,8 +278,10 @@ class ServerHostService : Service() {
 
     @Synchronized
     private fun stopEngine() {
+        runtimeStatus.read()?.let { snapshot -> runCatching { runtimeStatus.write("stopping", snapshot.profileId, snapshot.engineId, snapshot.pid) } }
         val running = process
         if (running == null || !running.isAlive) {
+            runtimeStatus.read()?.let { snapshot -> runCatching { runtimeStatus.write("stopped", snapshot.profileId, snapshot.engineId, snapshot.pid) } }
             log("Stop requested: no active server process.")
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
@@ -319,7 +332,10 @@ class ServerHostService : Service() {
     }
 
     override fun onDestroy() {
-        process?.let { if (it.isAlive) it.destroy() }
+        process?.let { running ->
+            if (running.isAlive) running.destroy()
+            runtimeStatus.read()?.let { snapshot -> runCatching { runtimeStatus.write("stopped", snapshot.profileId, snapshot.engineId, snapshot.pid) } }
+        }
         super.onDestroy()
     }
 
