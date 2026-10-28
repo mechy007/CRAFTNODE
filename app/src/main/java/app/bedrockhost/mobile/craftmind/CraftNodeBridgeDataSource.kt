@@ -10,8 +10,8 @@ class CraftNodeBridgeDataSource(context: Context) : CraftMindDataSource {
     private val worldsRoot = File(appContext.filesDir, "worlds")
     private val consoleLog = File(appContext.filesDir, "logs/server-console.log")
 
-    override fun serverStatus() = CraftMindToolResult(
-        requestId = "internal", tool = "server.status", status = CraftMindToolStatus.UNSUPPORTED,
+    override fun serverStatus(requestId: String) = CraftMindToolResult(
+        requestId = requestId, tool = "server.status", status = CraftMindToolStatus.UNSUPPORTED,
         message = "Live server status is not exposed by a verified runtime adapter yet.",
         verified = false, errorCode = "RUNTIME_STATUS_UNAVAILABLE"
     )
@@ -73,8 +73,8 @@ class CraftNodeBridgeDataSource(context: Context) : CraftMindDataSource {
     }
 
     private fun redact(line: String): String = line
-        .replace(Regex("(?i)(authorization\\s*[:=]\\s*bearer\\s+)\\S+"), "$1[REDACTED]")
-        .replace(Regex("(?i)(token|secret|api[_-]?key|password)(\\s*[:=]\\s*)[^\\s,;]+"), "$1$2[REDACTED]")
+        .replace(Regex("(?i)(authorization\\s*[:=]\\s*bearer\\s+)\\S+") { it.groupValues[1] + "[REDACTED]" })
+        .replace(Regex("(?i)(token|secret|api[_-]?key|password)(\\s*[:=]\\s*)[^\\s,;]+") { it.groupValues[1] + it.groupValues[2] + "[REDACTED]" })
 
     companion object { private val PROFILE_ID = Regex("[A-Za-z0-9_-]{1,64}") }
 }
