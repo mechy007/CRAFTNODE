@@ -10,11 +10,64 @@ class CraftNodeBridgeDataSource(context: Context) : CraftMindDataSource {
     private val worldsRoot = File(appContext.filesDir, "worlds")
     private val consoleLog = File(appContext.filesDir, "logs/server-console.log")
 
-    override fun serverStatus(requestId: String) = CraftMindToolResult(
-        requestId = requestId, tool = "server.status", status = CraftMindToolStatus.UNSUPPORTED,
-        message = "Live server status is not exposed by a verified runtime adapter yet.",
-        verified = false, errorCode = "RUNTIME_STATUS_UNAVAILABLE"
-    )
+    private val runtimeStatus = ServerRuntimeStatusStore(File(appContext.filesDir, "craftmind/server-runtime.properties"))
+
+    override fun serverStatus(requestId: String): CraftMindToolResult {
+        val snapshot = runtimeStatus.read() ?: return CraftMindToolResult(
+            requestId = requestId, tool = "server.status", status = CraftMindToolStatus.UNSUPPORTED,
+            message = "No runtime status snapshot is available yet. Start or stop the server once to initialize it.",
+            verified = false, errorCode = "RUNTIME_STATUS_UNAVAILABLE"
+        )
+        val state = when (snapshot.state) {
+            "running" -> {
+                if (snapshot.pid <= 0L) return CraftMindToolResult(
+                    requestId = requestId, tool = "server.status", status = CraftMindToolStatus.UNSUPPORTED,
+                    message = "The runtime snapshot has no valid process ID, so running state cannot be verified.",
+                    verified = false, errorCode = "PROCESS_ID_UNAVAILABLE"
+                )
+                val processDirectory = File("/proc/${snapshot.pid}")
+                val cmdlineFile = File(processDirectory, "cmdline")
+                if (!processDirectory.exists()) {
+                    "stopped"
+                } else if (cmdlineFile.isFile) {
+                    val cmdline = runCatching { cmdlineFile.readBytes().toString(Charsets.UTF_8).replace('\u0000', ' ') }.getOrNull()
+                    when {
+                        cmdline == null -> return CraftMindToolResult(
+                            requestId = requestId, tool = "server.status", status = CraftMindToolStatus.UNSUPPORTED,
+                            message = "The server process exists, but Android did not allow CraftNode to verify its command line.",
+                            verified = false, errorCode = "PROCESS_VERIFICATION_UNAVAILABLE"
+                        )
+                        snapshot.engineId == "falcon" && cmdline.contains("libfalcon.so") -> "running"
+                        snapshot.engineId == "novamine" && cmdline.contains("PocketMine-MP.phar") -> "running"
+                        else -> return CraftMindToolResult(
+                            requestId = requestId, tool = "server.status", status = CraftMindToolStatus.UNSUPPORTED,
+                            message = "The recorded process could not be matched safely to the selected server engine.",
+                            verified = false, errorCode = "PROCESS_IDENTITY_UNVERIFIED"
+                        )
+                    }
+                } else {
+                    return CraftMindToolResult(
+                        requestId = requestId, tool = "server.status", status = CraftMindToolStatus.UNSUPPORTED,
+                        message = "Android could not expose the recorded process command line, so CraftMind will not guess its state.",
+                        verified = false, errorCode = "PROCESS_VERIFICATION_UNAVAILABLE"
+                    )
+                }
+            }
+            else -> snapshot.state
+        }
+        return CraftMindToolResult(
+            requestId = requestId, tool = "server.status", status = CraftMindToolStatus.SUCCESS,
+            message = "Read the saved runtime state and checked the server process identity where running.",
+            verified = true,
+            data = mapOf(
+                "state" to state,
+                "profileId" to snapshot.profileId,
+                "engineId" to snapshot.engineId,
+                "pid" to snapshot.pid.toString(),
+                "updatedAt" to snapshot.updatedAt.toString()
+            )
+        )
+    }
 
     override fun listWorlds(requestId: String): CraftMindToolResult {
         val worlds = worldsRoot.listFiles()?.filter { it.isDirectory && PROFILE_ID.matches(it.name) }?.sortedBy { it.name }.orEmpty()
