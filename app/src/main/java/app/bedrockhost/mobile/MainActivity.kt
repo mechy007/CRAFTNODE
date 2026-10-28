@@ -11,6 +11,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import app.bedrockhost.mobile.server.ServerHostService
+import app.bedrockhost.mobile.craftmind.CraftMindChatPage
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -110,7 +111,7 @@ class MainActivity : ComponentActivity() {
 }
 
 private enum class Page(val label: String) {
-    Play("Home"), Host("Host"), Remote("Remote"), Console("Console"), Worlds("Worlds"), Players("Players"), Settings("Settings")
+    Play("Home"), Host("Host"), Remote("Remote"), Console("Console"), Worlds("Worlds"), Players("Players"), CraftMind("Mind"), Settings("Settings")
 }
 
 @Composable
@@ -210,6 +211,7 @@ private fun CraftNodeApp() {
                     onBack = { page = Page.Play }
                 )
                 Page.Players -> PlayerManagerPage(onBack = { page = Page.Play })
+                Page.CraftMind -> CraftMindChatPage()
                 Page.Remote -> RemoteAccessPage()
                 Page.Settings -> SettingsPage(
                     nativeReport = NativeDiagnostics.report(),
@@ -248,7 +250,7 @@ private fun CraftNodeApp() {
                 contentColor = TextMain,
                 windowInsets = WindowInsets.navigationBars
             ) {
-                listOf(Page.Play, Page.Worlds, Page.Console, Page.Settings).forEach { item ->
+                listOf(Page.Play, Page.Worlds, Page.CraftMind, Page.Console, Page.Settings).forEach { item ->
                     NavigationBarItem(
                         selected = page == item,
                         onClick = { page = item },
@@ -261,6 +263,7 @@ private fun CraftNodeApp() {
                                     Page.Console -> Icons.Default.Terminal
                                     Page.Worlds -> Icons.Default.Folder
                                     Page.Players -> Icons.Default.Groups
+                                    Page.CraftMind -> Icons.Default.Info
                                     Page.Settings -> Icons.Default.Settings
                                 },
                                 contentDescription = item.label
