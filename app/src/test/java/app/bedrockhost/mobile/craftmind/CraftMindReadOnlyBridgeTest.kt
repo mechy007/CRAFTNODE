@@ -8,7 +8,7 @@ import org.junit.Test
 class CraftMindReadOnlyBridgeTest {
     private class FakeSource : CraftMindDataSource {
         var calls = 0
-        override fun serverStatus() = unavailable("server.status")
+        override fun serverStatus(requestId: String) = unavailable("server.status").copy(requestId = requestId)
         override fun listWorlds(requestId: String): CraftMindToolResult {
             calls++
             return CraftMindToolResult(requestId = requestId, tool = "world.list", status = CraftMindToolStatus.SUCCESS, message = "ok", verified = true, data = mapOf("count" to "2"))
