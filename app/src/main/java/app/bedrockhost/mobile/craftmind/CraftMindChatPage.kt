@@ -89,6 +89,11 @@ fun CraftMindChatPage() {
                     val result = bridge.execute(request)
                     when (result.status) {
                         CraftMindToolStatus.SUCCESS -> when (result.tool) {
+                            "server.status" -> {
+                                "Server runtime status (verified):\n" + result.data.entries
+                                    .filter { it.key != "updatedAt" }
+                                    .joinToString("\n") { (key, value) -> "• $key: $value" }
+                            }
                             "world.list" -> {
                                 val rows = result.data["worlds"].orEmpty()
                                 if (rows.isBlank()) "No saved world profiles were found in CraftNode's app-private world folder."
