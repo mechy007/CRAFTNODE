@@ -53,7 +53,12 @@ class CraftNodeBridgeDataSource(context: Context) : CraftMindDataSource {
             requestId = requestId, tool = "server.logs.explain", status = CraftMindToolStatus.UNSUPPORTED,
             message = "No saved server console log is available yet.", errorCode = "LOG_NOT_FOUND"
         )
-        val lines = consoleLog.useLines { sequence -> sequence.toList().takeLast(maxLines) }
+        val tail = ArrayDeque<String>()
+        consoleLog.forEachLine { line ->
+            tail.addLast(line)
+            if (tail.size > maxLines) tail.removeFirst()
+        }
+        val lines = tail.toList()
         val safe = lines.joinToString("\n") { redact(it).take(1_000) }.take(CRAFTMIND_MAX_OUTPUT_CHARS)
         return CraftMindToolResult(
             requestId = requestId, tool = "server.logs.explain", status = CraftMindToolStatus.SUCCESS,
@@ -72,9 +77,14 @@ class CraftNodeBridgeDataSource(context: Context) : CraftMindDataSource {
         if (file.isFile) runCatching { file.inputStream().buffered().use { load(it) } }
     }
 
-    private fun redact(line: String): String = line
-        .replace(Regex("(?i)(authorization\\s*[:=]\\s*bearer\\s+)\\S+") { it.groupValues[1] + "[REDACTED]" })
-        .replace(Regex("(?i)(token|secret|api[_-]?key|password)(\\s*[:=]\\s*)[^\\s,;]+") { it.groupValues[1] + it.groupValues[2] + "[REDACTED]" })
+    private fun redact(line: String): String {
+        val bearerSafe = Regex("(?i)(authorization\\s*[:=]\\s*bearer\\s+)\\S+").replace(line) {
+            it.groupValues[1] + "[REDACTED]"
+        }
+        return Regex("(?i)(token|secret|api[_-]?key|password)(\\s*[:=]\\s*)[^\\s,;]+").replace(bearerSafe) {
+            it.groupValues[1] + it.groupValues[2] + "[REDACTED]"
+        }
+    }
 
     companion object { private val PROFILE_ID = Regex("[A-Za-z0-9_-]{1,64}") }
 }
