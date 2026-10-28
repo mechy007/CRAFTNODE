@@ -200,6 +200,7 @@ class ServerHostService : Service() {
     private fun startFalconEngine(profileId: String) {
         val executable = File(applicationInfo.nativeLibraryDir, "libfalcon.so")
         if (!executable.isFile || !executable.canExecute()) {
+            runCatching { runtimeStatus.write("failed", profileId, ENGINE_FALCON) }
             log("Falcon start failed: install the experimental Falcon engine from Settings first.")
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
@@ -288,6 +289,7 @@ class ServerHostService : Service() {
             return
         }
         log("Sending PocketMine-MP stop command.")
+        runCatching { runtimeStatus.read()?.let { snapshot -> runtimeStatus.write("stopping", snapshot.profileId, snapshot.engineId, snapshot.pid) } }
         runCatching {
             running.outputStream.write("stop\n".toByteArray(Charsets.UTF_8))
             running.outputStream.flush()
