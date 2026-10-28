@@ -26,7 +26,7 @@ data class CraftMindToolResult(
 )
 
 interface CraftMindDataSource {
-    fun serverStatus(): CraftMindToolResult
+    fun serverStatus(requestId: String): CraftMindToolResult
     fun listWorlds(requestId: String): CraftMindToolResult
     fun getWorld(requestId: String, worldId: String): CraftMindToolResult
     fun recentLogs(requestId: String, maxLines: Int): CraftMindToolResult
@@ -41,7 +41,7 @@ class CraftMindReadOnlyBridge(private val dataSource: CraftMindDataSource) {
         if (request.arguments.values.any { it.length > CRAFTMIND_MAX_ARGUMENT_CHARS }) return rejected(request, "ARGUMENT_TOO_LARGE", "A tool argument exceeds the allowed size.")
         return try {
             when (request.tool) {
-                "server.status" -> noArguments(request) { dataSource.serverStatus() }
+                "server.status" -> noArguments(request) { dataSource.serverStatus(request.requestId) }
                 "world.list" -> noArguments(request) { dataSource.listWorlds(request.requestId) }
                 "world.get" -> {
                     if (request.arguments.keys != setOf("worldId")) rejected(request, "INVALID_ARGUMENTS", "world.get requires only a worldId argument.")
